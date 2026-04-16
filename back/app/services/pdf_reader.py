@@ -16,6 +16,12 @@ def read_pdfs(folder_path):
                 for img in images:
                     text += pytesseract.image_to_string(img, lang="spa")
 
+                # 🔥 DEBUG AQUÍ
+                print("\n====== TEXTO EXTRAIDO ======")
+                print(f"Archivo: {filename}")
+                print(text[:1000])  # solo primeros 1000 caracteres
+                print("============================\n")
+
                 files_data.append({
                     "filename": filename,
                     "path": full_path,
