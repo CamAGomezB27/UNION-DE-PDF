@@ -4,6 +4,7 @@ import type { LogEntry, LogType } from "../types/pdf";
 
 export const useProcessPdf = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0); // ✅ FALTABA
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const addLog = (type: LogType, message: string) => {
@@ -26,13 +27,24 @@ export const useProcessPdf = () => {
   const merge = async (files: FileList) => {
     try {
       setIsLoading(true);
+      setProgress(0);
 
-      addLog("info", "Subiendo archivos...");
-      addLog("process", "Procesando PDFs con OCR...");
+      addLog("process", "Subiendo archivos...");
+      
+      // 🔥 simulación de progreso
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + 5;
+        });
+      }, 200);
 
       const res = await uploadAndProcess(files);
 
-      addLog("success", "PDF generado correctamente");
+      clearInterval(interval);
+
+      addLog("process", "Procesando PDFs...");
+      setProgress(100);
 
       const blob = new Blob([res.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
@@ -42,11 +54,15 @@ export const useProcessPdf = () => {
       a.download = "resultado.pdf";
       a.click();
 
+      addLog("success", "PDF generado correctamente");
+
     } catch (err) {
-      addLog("error", "Error procesando los PDFs");
       console.error(err);
+      addLog("error", "Error procesando los archivos");
     } finally {
       setIsLoading(false);
+
+      setTimeout(() => setProgress(0), 1200);
     }
   };
 
@@ -54,6 +70,7 @@ export const useProcessPdf = () => {
     merge,
     logs,
     isLoading,
+    progress, // ✅ EXPORTARLO
     clearLogs,
   };
 };
