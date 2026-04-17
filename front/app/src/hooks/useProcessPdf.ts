@@ -1,30 +1,51 @@
 import { useState } from "react";
 import { getFiles, mergePdfs } from "../api/pdfService";
+import type { PdfFile, LogEntry } from "../types/pdf";
 
 export const useProcessPdf = () => {
-  const [files, setFiles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [files, setFiles] = useState<PdfFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+
+  const addLog = (type: LogEntry["type"], message: string) => {
+    setLogs((prev) => [
+      ...prev,
+      {
+        time: new Date().toLocaleTimeString(),
+        type,
+        message,
+      },
+    ]);
+  };
 
   const loadFiles = async (path: string) => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       const res = await getFiles(path);
-      setFiles(res.data);
-      setLogs((prev) => [...prev, "Archivos cargados"]);
-      } catch (error) {
-        console.error("Error cargando archivos:", error); // opcional pero muy útil
-        setLogs((prev) => [...prev, "Error cargando archivos"]);
-      } finally {
-      setLoading(false);
+
+      // ⚠️ IMPORTANTE: adapta esto a tu backend
+      const mapped: PdfFile[] = res.data.map((f: string) => ({
+        name: f.split("/").pop(),
+        path: f,
+      }));
+
+      setFiles(mapped);
+      addLog("success", "Archivos cargados");
+    } catch {
+      addLog("error", "Error cargando archivos");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const merge = async (selected: string[]) => {
-    setLoading(true);
+  const merge = async (selected: PdfFile[]) => {
+    setIsLoading(true);
+    setProgress(0);
+
     try {
       const res = await mergePdfs({
-        files: selected,
+        files: selected.map((f) => f.path),
         outputName: "resultado.pdf",
       });
 
@@ -34,19 +55,21 @@ export const useProcessPdf = () => {
       a.download = "resultado.pdf";
       a.click();
 
-      setLogs((prev) => [...prev, "PDF unido correctamente"]);
+      setProgress(100);
+      addLog("success", "PDF unido correctamente");
     } catch {
-      setLogs((prev) => [...prev, "Error uniendo PDFs"]);
+      addLog("error", "Error uniendo PDFs");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return {
     files,
-    loading,
-    logs,
     loadFiles,
     merge,
+    logs,
+    isLoading,
+    progress,
   };
 };
