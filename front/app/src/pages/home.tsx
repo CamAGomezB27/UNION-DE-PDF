@@ -5,6 +5,12 @@ import FolderSelector from "../components/FolderSelector";
 import { useProcessPdf } from "../hooks/useProcessPdf";
 import type { LogType } from "../types/pdf";
 
+import { useMsal } from "@azure/msal-react";
+
+
+
+
+
 export default function Home() {
   const { merge, logs, isLoading, clearLogs, progress } = useProcessPdf();
   const consoleRef = useRef<HTMLDivElement>(null);
@@ -34,6 +40,10 @@ export default function Home() {
       default:        return "text-sky-300";
     }
   };
+
+    const { accounts } = useMsal();
+    const user = accounts[0];
+    console.log(user?.username); // correo
 
   return (
     <div className="min-h-screen bg-black text-zinc-300 selection:bg-indigo-500/30 overflow-hidden relative"

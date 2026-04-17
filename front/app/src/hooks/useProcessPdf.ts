@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { uploadAndProcess } from "../api/pdfService";
 import type { LogEntry, LogType } from "../types/pdf";
+import { useMsal } from "@azure/msal-react";
+import { loginRequest } from "../auth/authConfig";
 
 export const useProcessPdf = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0); // ✅ FALTABA
+  const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+
+  const { instance, accounts } = useMsal();
 
   const addLog = (type: LogType, message: string) => {
     setLogs((prev) => [
@@ -29,39 +33,42 @@ export const useProcessPdf = () => {
       setIsLoading(true);
       setProgress(0);
 
-      addLog("process", "Subiendo archivos...");
-      
-      // 🔥 simulación de progreso
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + 5;
-        });
-      }, 200);
+      addLog("process", "Autenticando usuario...");
 
-      const res = await uploadAndProcess(files);
+      // 🔐 obtener token
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+
+      const accessToken = tokenResponse.accessToken;
+
+      addLog("process", "Subiendo archivos...");
+
+      // 📦 FormData
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
+      });
+
+      // 🔥 fake progress
+      const interval = setInterval(() => {
+        setProgress((prev) => (prev >= 90 ? prev : prev + 10));
+      }, 300);
+
+      // 🚀 request
+      await uploadAndProcess(formData, accessToken);
 
       clearInterval(interval);
-
-      addLog("process", "Procesando PDFs...");
       setProgress(100);
 
-      const blob = new Blob([res.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "resultado.pdf";
-      a.click();
-
-      addLog("success", "PDF generado correctamente");
+      addLog("success", "Archivo subido a SharePoint");
 
     } catch (err) {
       console.error(err);
-      addLog("error", "Error procesando los archivos");
+      addLog("error", "Error procesando archivos");
     } finally {
       setIsLoading(false);
-
       setTimeout(() => setProgress(0), 1200);
     }
   };
@@ -70,7 +77,7 @@ export const useProcessPdf = () => {
     merge,
     logs,
     isLoading,
-    progress, // ✅ EXPORTARLO
+    progress,
     clearLogs,
   };
 };
