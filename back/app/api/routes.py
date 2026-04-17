@@ -79,7 +79,6 @@ def get_files(path: str):
 @router.post("/upload-and-process")
 def upload_and_process(files: list[UploadFile] = File(...)):
 
-    # 🔥 crear carpeta única por ejecución
     session_id = str(uuid.uuid4())
     input_dir = os.path.join(UPLOAD_BASE, session_id)
 
@@ -89,28 +88,29 @@ def upload_and_process(files: list[UploadFile] = File(...)):
     os.makedirs(folder_a, exist_ok=True)
     os.makedirs(folder_b, exist_ok=True)
 
-    # 🔥 guardar archivos
     for file in files:
         filename_upper = file.filename.upper()
 
-        # lógica simple para separar carpetas
+        # 🔥 evitar rutas tipo "carpeta/archivo.pdf"
+        filename = os.path.basename(file.filename)
+
         if "BEC" in filename_upper:
-            # 👉 estos son tipo EMISOR
-            save_path = os.path.join(folder_b, file.filename)
+            save_path = os.path.join(folder_b, filename)
         else:
-            # 👉 estos son tipo PROVEEDOR
-            save_path = os.path.join(folder_a, file.filename)
+            save_path = os.path.join(folder_a, filename)
+
+        # 🔥 asegurar carpeta (por seguridad)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         with open(save_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-    # 🔥 procesar usando esas carpetas
+    # 🔥 procesar
     results = process_pdfs(folder_a, folder_b)
 
     if not results:
         return {"message": "No se encontraron coincidencias"}
 
-    # devolver primer resultado (puedes mejorar luego)
     return FileResponse(
         path=results[0],
         media_type="application/pdf",
