@@ -4,22 +4,26 @@ def match_files(files_a, files_b):
     matches = []
 
     for file_a in files_a:
-        nit_a = extract_nit(file_a["text"])
+        nit_a = extract_nit(file_a["text"], file_a["filename"])
         if not nit_a:
             continue
 
         for file_b in files_b:
-            nit_b = extract_nit(file_b["text"])
+            nit_b = extract_nit(file_b["text"], file_b["filename"])
             if not nit_b:
                 continue
 
-            # 🔥 NORMALIZAR (quitar DV si existe)
-            nit_a_base = nit_a[:-1] if len(nit_a) > 9 else nit_a
-            nit_b_base = nit_b[:-1] if len(nit_b) > 9 else nit_b
+            # 🔥 NORMALIZAR (por si acaso)
+            nit_a_base = nit_a[:9]
+            nit_b_base = nit_b[:9]
 
-            print("COMPARE:", nit_a_base, nit_b_base)
+            print("----")
+            print("A:", file_a["filename"], "->", nit_a_base)
+            print("B:", file_b["filename"], "->", nit_b_base)
 
             if nit_a_base == nit_b_base:
+                print("✅ MATCH!")
+
                 matches.append({
                     "id": nit_a_base,
                     "file_a": file_a["path"],
