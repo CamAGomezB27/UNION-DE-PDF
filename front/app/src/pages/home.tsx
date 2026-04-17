@@ -6,140 +6,197 @@ import { useProcessPdf } from "../hooks/useProcessPdf";
 import type { LogType } from "../types/pdf";
 
 export default function Home() {
-  const { merge, logs, isLoading, clearLogs } = useProcessPdf();
+  const { merge, logs, isLoading, clearLogs, progress } = useProcessPdf();
   const consoleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (consoleRef.current) {
-      consoleRef.current.scrollTo({
-        top: consoleRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+      consoleRef.current.scrollTo({ top: consoleRef.current.scrollHeight, behavior: "smooth" });
     }
   }, [logs]);
 
   const getLogIcon = (type: LogType) => {
     switch (type) {
-      case "success": return <VscCheckAll className="text-emerald-400" />;
-      case "warn": return <VscWarning className="text-amber-400" />;
-      case "error": return <VscError className="text-rose-400" />;
-      case "process": return <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse mt-1.5" />;
-      default: return <VscInfo className="text-blue-400" />;
+      case "success": return <VscCheckAll className="text-emerald-400 mt-0.5" />;
+      case "warn":    return <VscWarning className="text-amber-400 mt-0.5" />;
+      case "error":   return <VscError className="text-rose-400 mt-0.5" />;
+      case "process": return <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse mt-1.5 shrink-0" />;
+      default:        return <VscInfo className="text-sky-400 mt-0.5" />;
+    }
+  };
+
+  const logColor = (type: LogType) => {
+    switch (type) {
+      case "success": return "text-emerald-300 font-semibold";
+      case "warn":    return "text-yellow-300 font-semibold";
+      case "error":   return "text-red-400 font-bold";
+      case "process": return "text-indigo-300 italic";
+      default:        return "text-sky-300";
     }
   };
 
   return (
-    // Fondo principal ultra oscuro
-    <div className="min-h-screen bg-[#09090b] text-zinc-300 py-12 px-4 selection:bg-indigo-500/30">
-      <div className="mx-auto max-w-3xl space-y-8">
-        
-        {/* Header con brillo suave */}
-        <header className="flex items-end justify-between px-2">
+    <div className="min-h-screen bg-black text-zinc-300 selection:bg-indigo-500/30 overflow-hidden relative"
+         style={{ fontFamily: "'Space Mono', monospace" }}>
+
+      {/* Grid background */}
+      <div className="fixed inset-0 z-0"
+           style={{
+             backgroundImage: `linear-gradient(rgba(99,102,241,0.12) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(99,102,241,0.12) 1px, transparent 1px)`,
+             backgroundSize: "48px 48px"
+           }} />
+
+      {/* Scan line */}
+      <div className="fixed left-0 right-0 h-px z-10 pointer-events-none"
+           style={{
+             background: "linear-gradient(90deg, transparent, rgba(99,102,241,0.5), transparent)",
+             animation: "scanDown 6s linear infinite"
+           }} />
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+        @keyframes scanDown {
+          0%   { top: -2px; opacity: 0; }
+          5%   { opacity: 1; }
+          95%  { opacity: 1; }
+          100% { top: 100vh; opacity: 0; }
+        }
+        @keyframes orbit { to { transform: rotate(360deg); } }
+        @keyframes shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .console-scrollbar::-webkit-scrollbar { width: 4px; }
+        .console-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .console-scrollbar::-webkit-scrollbar-thumb { background: #222234; border-radius: 2px; }
+      `}</style>
+
+      <div className="relative z-10 mx-auto max-w-6xl px-6 py-12 space-y-8">
+
+        {/* ── HEADER ── */}
+        <header className="flex items-end justify-between">
           <div>
-            <h1 className="text-4xl font-extrabold text-white tracking-tight">
-              PDF<span className="text-indigo-500">Merge</span>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 52, lineHeight: 1, letterSpacing: -2, color: "#fff" }}>
+              PDF<span style={{ color: "transparent", WebkitTextStroke: "2px #6366f1" }}>Merge</span>
             </h1>
-            <p className="text-zinc-500 text-sm mt-2 font-medium">
-              Procesamiento de documentos de alto rendimiento
+            <p className="text-[11px] tracking-[0.3em] uppercase text-indigo-500 mt-2">
+              Procesamiento de alto rendimiento
             </p>
           </div>
-          <div className="hidden sm:block">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              Engine Active
-            </div>
+          <div className="hidden sm:flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-500 border border-indigo-500/30 bg-indigo-500/5"
+               style={{ clipPath: "polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%)" }}>
+            <span className="relative flex w-2 h-2">
+              <span className="absolute w-full h-full rounded-full bg-indigo-500 animate-ping opacity-75" />
+              <span className="relative w-2 h-2 rounded-full bg-indigo-500" />
+            </span>
+            Engine Active
           </div>
         </header>
 
-        {/* Zona de Acción - Tarjeta con contraste sutil */}
-        <main className="bg-[#121214] rounded-2xl border border-white/5 shadow-2xl p-8">
-          <FolderSelector
-            onSelect={merge}
-            isLoading={isLoading}
-            progress={0} // temporal
-          />
+        {/* ── MAIN CARD ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── LEFT: SELECTOR ── */}
+          <main className="relative bg-[#0c0d11] border border-white/10 p-8 overflow-hidden">
+          {/* Top glow line */}
+            <div className="absolute top-0 left-0 right-0 h-px"
+               style={{ background: "linear-gradient(90deg, transparent, #6366f1, transparent)" }} />
+            {/* Corner marks */}
+            {(["tl","tr","bl","br"] as const).map(c => (
+              <div key={c} className="absolute w-4 h-4 border-indigo-500" style={{
+                borderStyle: "solid",
+                top:    c.startsWith("t") ? 0 : "auto",
+                bottom: c.startsWith("b") ? 0 : "auto",
+                left:   c.endsWith("l")   ? 0 : "auto",
+                right:  c.endsWith("r")   ? 0 : "auto",
+                borderWidth: `${c.startsWith("t") ? 2 : 0}px ${c.endsWith("r") ? 2 : 0}px ${c.startsWith("b") ? 2 : 0}px ${c.endsWith("l") ? 2 : 0}px`,
+              }} />
+            ))}
+            <span className="absolute top-4 right-5 text-[9px] tracking-widest text-indigo-500/15 font-mono">
+              0x4D455247455F50444600
+            </span>
+
+          <FolderSelector 
+
+        onSelect={merge} 
+        isLoading={isLoading} 
+        progress={progress} 
+      
+           />
         </main>
 
-        {/* Sección de la Consola - Máximo Resalte */}
-        <div className="space-y-4">
+         {/* ── RIGHT: CONSOLE ── */}
+        <div className="space-y-3">
+
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2 text-zinc-400">
-              <HiOutlineTerminal className="text-xl text-indigo-400" />
-              <span className="text-xs font-bold uppercase tracking-[0.2em]">Live Output</span>
+            <div className="flex items-center gap-2.5 text-indigo-400 text-[11px] uppercase tracking-[0.3em]">
+              <HiOutlineTerminal size={16} />
+              Live Output
             </div>
-            <button 
+
+            <button
               onClick={clearLogs}
-              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-rose-400 transition-all active:scale-95"
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-zinc-500 hover:text-rose-400 transition-colors active:scale-95 font-bold"
             >
-              <HiOutlineTrash size={16} />
-              BORRAR LOGS
+              <HiOutlineTrash size={13} />
+              Borrar logs
             </button>
           </div>
 
-          <div className="console-container ring-1 ring-white/10">
-            {/* Toolbar estilo editor de código */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-[#1a1b1e]/50 backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
-                </div>
-                <span className="ml-4 text-[10px] text-zinc-500 font-mono tracking-wider uppercase">terminal — bash</span>
-              </div>
-              <div className="text-[10px] text-zinc-600 font-mono italic">UTF-8</div>
+          <div className="bg-[#050507] border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
+
+            {/* top bar */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-indigo-500/20 bg-indigo-500/5">
+              <span className="text-[10px] text-indigo-300 tracking-widest uppercase">
+                terminal — bash
+              </span>
+              <span className="text-[10px] text-indigo-400">UTF-8</span>
             </div>
 
-            <div 
-              ref={consoleRef} 
-              className="h-72 overflow-y-auto p-6 font-mono text-[13px] leading-relaxed console-scrollbar bg-[#0d0f14]/80"
+            <div
+              ref={consoleRef}
+              className="h-80 overflow-y-auto p-5 text-[13px] leading-relaxed console-scrollbar"
             >
               {logs.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-700 space-y-4">
-                  <HiOutlineDocumentText size={48} className="opacity-20" />
-                  <p className="text-[10px] uppercase tracking-[0.3em] font-bold opacity-40">Ready for instructions</p>
+                <div className="h-full flex flex-col items-center justify-center gap-4">
+                  <HiOutlineDocumentText size={52} className="text-indigo-500 opacity-20" />
+                  <p className="text-[11px] uppercase tracking-[0.35em] text-indigo-400/40">
+                    Ready for instructions
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {logs.map((log, i) => (
-                    <div key={i} className="log-entry flex gap-4 group">
-                      <span className="text-zinc-600 shrink-0 select-none text-[11px] mt-0.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                    <div key={i} className="flex gap-3 items-start">
+
+                      <span className="text-[10px] text-zinc-500 min-w-[55px]">
                         {log.time}
                       </span>
-                      <span className="mt-1 shrink-0 filter drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]">
-                        {getLogIcon(log.type)}
-                      </span>
-                      <span className={`
-                        ${log.type === "success" ? "text-emerald-400 brightness-110" : ""}
-                        ${log.type === "warn" ? "text-amber-300" : ""}
-                        ${log.type === "error" ? "text-rose-400 font-bold" : ""}
-                        ${log.type === "process" ? "text-indigo-400 italic" : ""}
-                        ${log.type === "info" ? "text-sky-400" : ""}
-                        text-zinc-300
-                      `}>
+
+                      <span>{getLogIcon(log.type)}</span>
+
+                      <span className={`${logColor(log.type)} text-[13px]`}>
                         {log.message}
                       </span>
                     </div>
                   ))}
-                  {/* Cursor parpadeante al final de los logs */}
-                  <div className="w-2 h-4 bg-indigo-500/50 animate-pulse inline-block ml-2" />
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer Dark */}
-        <footer className="pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-600 font-bold tracking-widest uppercase">
-          <p>© 2026 Innovasoft Systems</p>
-          <div className="flex gap-6">
-            <span className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Security Verified
+      </div>
+        
+
+        {/* ── FOOTER ── */}
+        <footer className="pt-6 border-t border-white/[0.04] flex justify-between items-center text-[9px] tracking-[0.25em] uppercase text-green-300">
+          <div className="flex items-center gap-2">
+            <span className="relative flex w-2 h-2">
+              <span className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-75" />
+              <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
             </span>
+            Security Verified
           </div>
         </footer>
       </div>
