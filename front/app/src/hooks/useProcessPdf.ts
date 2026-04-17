@@ -1,75 +1,59 @@
 import { useState } from "react";
-import { getFiles, mergePdfs } from "../api/pdfService";
-import type { PdfFile, LogEntry } from "../types/pdf";
+import { uploadAndProcess } from "../api/pdfService";
+import type { LogEntry, LogType } from "../types/pdf";
 
 export const useProcessPdf = () => {
-  const [files, setFiles] = useState<PdfFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  const addLog = (type: LogEntry["type"], message: string) => {
+  const addLog = (type: LogType, message: string) => {
     setLogs((prev) => [
       ...prev,
       {
-        time: new Date().toLocaleTimeString(),
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
         type,
         message,
       },
     ]);
   };
 
-  const loadFiles = async (path: string) => {
-    setIsLoading(true);
+  const clearLogs = () => setLogs([]);
+
+  const merge = async (files: FileList) => {
     try {
-      const res = await getFiles(path);
+      setIsLoading(true);
 
-      // ⚠️ IMPORTANTE: adapta esto a tu backend
-      const mapped: PdfFile[] = res.data.map((f: string) => ({
-        name: f.split("/").pop(),
-        path: f,
-      }));
+      addLog("info", "Subiendo archivos...");
+      addLog("process", "Procesando PDFs con OCR...");
 
-      setFiles(mapped);
-      addLog("success", "Archivos cargados");
-    } catch {
-      addLog("error", "Error cargando archivos");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const res = await uploadAndProcess(files);
 
-  const merge = async (selected: PdfFile[]) => {
-    setIsLoading(true);
-    setProgress(0);
+      addLog("success", "PDF generado correctamente");
 
-    try {
-      const res = await mergePdfs({
-        files: selected.map((f) => f.path),
-        outputName: "resultado.pdf",
-      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
 
-      const url = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
       a.download = "resultado.pdf";
       a.click();
 
-      setProgress(100);
-      addLog("success", "PDF unido correctamente");
-    } catch {
-      addLog("error", "Error uniendo PDFs");
+    } catch (err) {
+      addLog("error", "Error procesando los PDFs");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return {
-    files,
-    loadFiles,
     merge,
     logs,
     isLoading,
-    progress,
+    clearLogs,
   };
 };

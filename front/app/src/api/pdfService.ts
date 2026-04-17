@@ -13,3 +13,15 @@ export const mergePdfs = (data: {
   files: string[];
   outputName: string;
 }) => API.post(`/merge`, data, { responseType: "blob" });
+
+export const uploadAndProcess = (files: FileList) => {
+  const formData = new FormData();
+
+  Array.from(files).forEach((file) => {
+    formData.append("files", file);
+  });
+
+  return API.post("/upload-and-process", formData, {
+    responseType: "blob",
+  });
+};

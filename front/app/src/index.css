@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .console-container {
+    @apply relative overflow-hidden rounded-xl border border-neutral-800 bg-[#0d0f14] shadow-2xl;
+  }
+
+  /* Scrollbar personalizada para la consola */
+  .console-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .console-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .console-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-neutral-700 rounded-full hover:bg-neutral-600;
+  }
+
+  /* Animación para nuevos logs */
+  .log-entry {
+    animation: slideIn 0.2s ease-out forwards;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-4px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
+
+@layer components {
+  .console-container {
+    /* Gradiente sutil para que no sea un bloque plano */
+    @apply relative overflow-hidden rounded-xl border border-white/10 bg-[#0d0f14] shadow-[0_20px_50px_rgba(0,0,0,0.5)];
+  }
+
+  .console-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20;
+  }
+
+  .log-entry {
+    animation: slideIn 0.2s ease-out forwards;
+  }
+}
