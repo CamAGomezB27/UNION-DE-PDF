@@ -1,7 +1,11 @@
 from PyPDF2 import PdfMerger
-import os
+import os  # 👈 FALTABA ESTO
 
 OUTPUT_DIR = "storage/output"
+
+# 👇 crea la carpeta si no existe
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 
 def merge_pdfs(match):
     merger = PdfMerger()
