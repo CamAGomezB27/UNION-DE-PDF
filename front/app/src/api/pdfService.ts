@@ -9,10 +9,7 @@ export const getFiles = (path: string) =>
   API.get(`/files`, { params: { path } });
 
 // Unir PDFs (flujo antiguo)
-export const mergePdfs = (data: {
-  files: string[];
-  outputName: string;
-}) =>
+export const mergePdfs = (data: { files: string[]; outputName: string }) =>
   API.post(`/merge`, data, {
     responseType: "blob",
   });
@@ -20,14 +17,10 @@ export const mergePdfs = (data: {
 /**
  * 🔥 NUEVO (con token)
  */
-export const uploadAndProcess = (
-  formData: FormData,
-  token: string
-) => {
+export const uploadAndProcess = (formData: FormData, token: string) => {
   return API.post("/upload-and-process", formData, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    responseType: "blob", // si luego quieres descargar o procesar
   });
 };

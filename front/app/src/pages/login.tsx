@@ -1,41 +1,45 @@
 import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "../auth/authConfig";
-import { HiOutlineShieldCheck } from "react-icons/hi";
-import { PiMicrosoftOutlookLogoFill, PiFilesFill } from "react-icons/pi";
 import { FaArrowRightLong } from "react-icons/fa6";
+import { HiOutlineShieldCheck } from "react-icons/hi";
+import { PiFilesFill, PiMicrosoftOutlookLogoFill } from "react-icons/pi";
+import { loginRequest } from "../auth/authConfig";
 
 export default function Login() {
   const { instance } = useMsal();
 
   const handleLogin = async () => {
     try {
-      await instance.loginPopup(loginRequest);
+      await instance.loginRedirect(loginRequest);
     } catch (error) {
       console.error("Login failed:", error);
     }
   };
 
+  console.log("CLIENT_ID:", import.meta.env.VITE_AZURE_CLIENT_ID);
+  console.log("TENANT_ID:", import.meta.env.VITE_AZURE_TENANT_ID);
+  console.log("REDIRECT_URI:", import.meta.env.VITE_REDIRECT_URI);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-mesh relative overflow-hidden font-sans">
-      
       {/* CAPA DE FONDO DINÁMICA */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-grid-white opacity-40" />
         {/* Orbes de luz con más intensidad para generar contraste */}
         <div className="absolute top-[20%] left-[10%] w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[100px] animate-pulse-slow" />
-        <div className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        <div
+          className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[100px] animate-pulse-slow"
+          style={{ animationDelay: "2s" }}
+        />
       </div>
 
       <div className="relative z-10 w-full max-w-md px-6">
-        
         {/* CARD: Glassmorphism de alto contraste */}
         <div className="relative group">
           {/* Brillo perimetral (Border Glow) */}
           <div className="absolute -inset-0.5 bg-gradient-to-b from-indigo-500 to-transparent rounded-[2.5rem] blur-lg opacity-50 group-hover:opacity-100 transition duration-1000" />
-          
+
           {/* Cuerpo de la tarjeta - Ahora más clara para separarse del fondo negro */}
           <div className="relative bg-[#111114] border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] p-10 md:p-12 overflow-hidden">
-            
             {/* Decoración superior: El icono de archivos como foco */}
             <div className="flex justify-center mb-8">
               <div className="relative">
@@ -71,10 +75,14 @@ export default function Login() {
                     <div className="shrink-0 w-8 h-8 flex items-center justify-center bg-[#0078D4] rounded-2xl">
                       <PiMicrosoftOutlookLogoFill className="text-white text-3xl" />
                     </div>
-                    
+
                     <div>
-                      <div className="font-black text-base tracking-normal text-left leading-none">Inicia sesión</div>
-                      <div className="text-[10px] text-zinc-500 font-medium -mt-0.5">con Microsoft Outlook</div>
+                      <div className="font-black text-base tracking-normal text-left leading-none">
+                        Inicia sesión
+                      </div>
+                      <div className="text-[10px] text-zinc-500 font-medium -mt-0.5">
+                        con Microsoft Outlook
+                      </div>
                     </div>
                   </div>
 

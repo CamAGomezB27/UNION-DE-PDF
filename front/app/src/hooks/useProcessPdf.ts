@@ -1,8 +1,8 @@
+import { useMsal } from "@azure/msal-react";
 import { useState } from "react";
 import { uploadAndProcess } from "../api/pdfService";
-import type { LogEntry, LogType } from "../types/pdf";
-import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../auth/authConfig";
+import type { LogEntry, LogType } from "../types/pdf";
 
 export const useProcessPdf = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -33,9 +33,14 @@ export const useProcessPdf = () => {
       setIsLoading(true);
       setProgress(0);
 
+      if (!accounts.length) {
+        addLog("error", "No hay usuario autenticado");
+        return;
+      }
+
       addLog("process", "Autenticando usuario...");
 
-      // 🔐 obtener token
+      // 🔐 TOKEN DEL USUARIO
       const tokenResponse = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
@@ -43,7 +48,7 @@ export const useProcessPdf = () => {
 
       const accessToken = tokenResponse.accessToken;
 
-      addLog("process", "Subiendo archivos...");
+      addLog("process", "Preparando archivos...");
 
       // 📦 FormData
       const formData = new FormData();
@@ -51,19 +56,20 @@ export const useProcessPdf = () => {
         formData.append("files", file);
       });
 
-      // 🔥 fake progress
+      addLog("process", "Subiendo archivos...");
+
+      // 🔥 progreso simulado
       const interval = setInterval(() => {
         setProgress((prev) => (prev >= 90 ? prev : prev + 10));
       }, 300);
 
-      // 🚀 request
+      // 🚀 enviar con token (TU LÓGICA ORIGINAL)
       await uploadAndProcess(formData, accessToken);
 
       clearInterval(interval);
       setProgress(100);
 
-      addLog("success", "Archivo subido a SharePoint");
-
+      addLog("success", "Proceso completado correctamente");
     } catch (err) {
       console.error(err);
       addLog("error", "Error procesando archivos");

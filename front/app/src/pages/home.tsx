@@ -7,10 +7,6 @@ import type { LogType } from "../types/pdf";
 
 import { useMsal } from "@azure/msal-react";
 
-
-
-
-
 export default function Home() {
   const { merge, logs, isLoading, clearLogs, progress } = useProcessPdf();
   const consoleRef = useRef<HTMLDivElement>(null);
