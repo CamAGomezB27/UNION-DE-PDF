@@ -37,7 +37,15 @@ export default function Home() {
     }
   };
 
-    const { accounts } = useMsal();
+    const { instance, accounts } = useMsal();
+    const handleLogout = async () => {
+      try {
+        await instance.logoutRedirect();
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+    };
+
     const user = accounts[0];
     console.log(user?.username); // correo
 
@@ -90,13 +98,22 @@ export default function Home() {
               Procesamiento de alto rendimiento
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-500 border border-indigo-500/30 bg-indigo-500/5"
-               style={{ clipPath: "polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%)" }}>
-            <span className="relative flex w-2 h-2">
-              <span className="absolute w-full h-full rounded-full bg-indigo-500 animate-ping opacity-75" />
-              <span className="relative w-2 h-2 rounded-full bg-indigo-500" />
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-500 border border-indigo-500/30 bg-indigo-500/5"
+              style={{ clipPath: "polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%)" }}>
+              <span className="relative flex w-2 h-2">
+                <span className="absolute w-full h-full rounded-full bg-indigo-500 animate-ping opacity-75" />
+                <span className="relative w-2 h-2 rounded-full bg-indigo-500" />
+              </span>
+              Engine Active
             </span>
-            Engine Active
+
+            <button
+              onClick={handleLogout}
+              className="text-[10px] px-4 py-2 border border-rose-500/40 text-rose-400 uppercase tracking-widest hover:bg-rose-500/10 transition-all"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </header>
 

@@ -8,6 +8,7 @@ export default function Login() {
   const { instance } = useMsal();
 
   const handleLogin = async () => {
+    console.log("CLICK LOGIN"); 
     try {
       await instance.loginRedirect(loginRequest);
     } catch (error) {
@@ -15,9 +16,9 @@ export default function Login() {
     }
   };
 
-  console.log("CLIENT_ID:", import.meta.env.VITE_AZURE_CLIENT_ID);
-  console.log("TENANT_ID:", import.meta.env.VITE_AZURE_TENANT_ID);
-  console.log("REDIRECT_URI:", import.meta.env.VITE_REDIRECT_URI);
+  console.log("AZURE_CLIENT_ID:", import.meta.env.VITE_AZURE_CLIENT_ID);
+  console.log("AZURE_TENANT_ID:", import.meta.env.VITE_AZURE_TENANT_ID);
+  console.log("AZURE_REDIRECT_URI:", import.meta.env.VITE_REDIRECT_URI);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-mesh relative overflow-hidden font-sans">
