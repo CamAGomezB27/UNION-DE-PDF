@@ -107,10 +107,11 @@ def upload_and_process(
 
     try:
         user = verify_token(token)
+        print("TOKEN DECODED:", user)
         user_email = user.get("preferred_username")
-        print("👤 Usuario:", user_email)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido")
+    except Exception as e:
+        print("❌ ERROR REAL TOKEN:", str(e))
+        raise HTTPException(status_code=401, detail=str(e))
 
     # 📁 =========================
     # CREAR SESIÓN
@@ -152,13 +153,14 @@ def upload_and_process(
     # ☁️ =========================
     # SUBIR A SHAREPOINT
     # =========================
+    sharepoint_ok = False
+
     try:
         drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
         graph_token = get_graph_token()
 
         filename = os.path.basename(result_file)
 
-        # 👉 Ajusta aquí la ruta donde quieres guardar
         sharepoint_path = f"FC CONSOLIDADOS/2024/{user_email}/{filename}"
 
         url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
@@ -173,6 +175,7 @@ def upload_and_process(
 
         if res.status_code in [200, 201]:
             print("✅ Archivo subido a SharePoint")
+            sharepoint_ok = True
         else:
             print("⚠️ Error SharePoint:", res.status_code, res.text)
 
@@ -182,6 +185,9 @@ def upload_and_process(
     # 📥 =========================
     # RESPUESTA
     # =========================
+    if not sharepoint_ok:
+        print("⬇️ Descargando archivo porque SharePoint falló")
+
     return FileResponse(
         path=result_file,
         media_type="application/pdf",
