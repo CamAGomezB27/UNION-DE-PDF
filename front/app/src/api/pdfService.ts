@@ -1,27 +1,26 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:3001", // tu backend FastAPI
+  baseURL: "http://localhost:3001",
 });
 
 // Obtener archivos de una ruta
 export const getFiles = (path: string) =>
   API.get(`/files`, { params: { path } });
 
-// Unir PDFs
-export const mergePdfs = (data: {
-  files: string[];
-  outputName: string;
-}) => API.post(`/merge`, data, { responseType: "blob" });
-
-export const uploadAndProcess = (files: FileList) => {
-  const formData = new FormData();
-
-  Array.from(files).forEach((file) => {
-    formData.append("files", file);
+// Unir PDFs (flujo antiguo)
+export const mergePdfs = (data: { files: string[]; outputName: string }) =>
+  API.post(`/merge`, data, {
+    responseType: "blob",
   });
 
+/**
+ * 🔥 NUEVO (con token)
+ */
+export const uploadAndProcess = (formData: FormData, token: string) => {
   return API.post("/upload-and-process", formData, {
-    responseType: "blob",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 };
