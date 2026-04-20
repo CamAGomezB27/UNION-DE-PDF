@@ -2,7 +2,7 @@ from jose import jwt
 import requests
 import os
 
-TENANT_ID = os.getenv("TENANT_ID")
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
 CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
 
 
@@ -16,11 +16,13 @@ def verify_token(token: str):
 
     public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
 
+    print(decoded)
+
     decoded = jwt.decode(
         token,
         public_key,
         algorithms=["RS256"],
-        audience="TU_CLIENT_ID",
+        audience=CLIENT_ID,
     )
 
     return decoded

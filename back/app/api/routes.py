@@ -12,6 +12,7 @@ from PyPDF2 import PdfMerger
 from app.services.processor import process_pdfs
 from app.services.sharepoint import upload_to_sharepoint
 from app.utils.auth import verify_token
+from app.services.graph_auth import get_graph_token
 
 router = APIRouter()
 
@@ -152,18 +153,18 @@ def upload_and_process(
     # SUBIR A SHAREPOINT
     # =========================
     try:
-        site_id = "TU_SITE_ID"
-        drive_id = "TU_DRIVE_ID"
+        drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
+        graph_token = get_graph_token()
 
         filename = os.path.basename(result_file)
 
-        # 🔥 OPCIONAL: guardar por usuario
-        sharepoint_path = f"{user_email}/{filename}"
+        # 👉 Ajusta aquí la ruta donde quieres guardar
+        sharepoint_path = f"FC CONSOLIDADOS/2024/{user_email}/{filename}"
 
-        url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:/{sharepoint_path}:/content"
+        url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
 
         headers = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {graph_token}",
             "Content-Type": "application/pdf"
         }
 
