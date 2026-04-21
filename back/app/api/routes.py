@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+import time
 
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from pydantic import BaseModel
@@ -204,6 +205,10 @@ def upload_and_process(
         status = "todos los archivos subidos correctamente"
     else:
         status = "proceso completado con errores"
+
+    set_progress(job_id, 95, "finalizando...")
+
+    time.sleep(0.2)  # 👈 fuerza pequeño delay para sync UI
 
     set_progress(job_id, 100, status)
 
