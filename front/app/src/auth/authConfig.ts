@@ -7,5 +7,5 @@ export const msalConfig = {
 };
 
 export const loginRequest = {
-  scopes: ["User.Read"],
+  scopes: [import.meta.env.VITE_API_SCOPE],
 };
