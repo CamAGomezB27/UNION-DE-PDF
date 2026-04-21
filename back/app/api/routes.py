@@ -94,27 +94,20 @@ def upload_and_process(
     session_id = str(uuid.uuid4())
     input_dir = os.path.join(UPLOAD_BASE, session_id)
 
-    folder_a = os.path.join(input_dir, "folder_a")
-    folder_b = os.path.join(input_dir, "folder_b")
-
-    os.makedirs(folder_a, exist_ok=True)
-    os.makedirs(folder_b, exist_ok=True)
-
     # 📂 GUARDAR ARCHIVOS
     for file in files:
         filename = os.path.basename(file.filename)
-        filename_upper = filename.upper()
+    os.makedirs(input_dir, exist_ok=True)
 
-        if "BEC" in filename_upper:
-            save_path = os.path.join(folder_b, filename)
-        else:
-            save_path = os.path.join(folder_a, filename)
+    for file in files:
+        filename = os.path.basename(file.filename)
+        save_path = os.path.join(input_dir, filename)
 
         with open(save_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
     # ⚙️ PROCESAR PDFs (debe devolver lista de {nit, file})
-    results = process_pdfs(folder_a, folder_b)
+    results = process_pdfs(input_dir)
 
     if not results:
         return {"message": "No se encontraron coincidencias"}

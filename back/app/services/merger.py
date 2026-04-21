@@ -6,17 +6,22 @@ OUTPUT_DIR = "storage/output"
 # 👇 crea la carpeta si no existe
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+def merge_group(nit, file_paths):
+    if len(file_paths) < 2:
+        return None
 
-def merge_pdfs(match):
     merger = PdfMerger()
 
-    merger.append(match["file_a"])
-    merger.append(match["file_b"])
+    for path in file_paths:
+        merger.append(path)
 
-    output_filename = f"{match['id']}.pdf"
+    output_filename = f"{nit}.pdf"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
 
     merger.write(output_path)
     merger.close()
 
-    return output_path
+    return {
+        "nit": nit,
+        "file": output_path
+    }

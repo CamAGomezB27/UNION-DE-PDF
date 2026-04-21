@@ -1,5 +1,5 @@
-from app.utils.regex_utils import extract_nit
 from collections import defaultdict
+from app.utils.regex_utils import extract_nit
 
 def group_by_nit(files):
     groups = defaultdict(list)
