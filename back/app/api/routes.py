@@ -1,7 +1,6 @@
 import os
 import shutil
 import uuid
-import requests
 
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from pydantic import BaseModel
@@ -11,6 +10,7 @@ from PyPDF2 import PdfMerger
 from app.services.processor import process_pdfs
 from app.utils.auth import verify_token
 from app.services.graph_auth import get_graph_token
+from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
 
 router = APIRouter()
 
@@ -85,7 +85,6 @@ def upload_and_process(
     try:
         user = verify_token(token)
         print("TOKEN DECODED:", user)
-        user_email = user.get("preferred_username")
     except Exception as e:
         print("❌ ERROR REAL TOKEN:", str(e))
         raise HTTPException(status_code=401, detail=str(e))
@@ -93,12 +92,9 @@ def upload_and_process(
     # 📁 CREAR SESIÓN
     session_id = str(uuid.uuid4())
     input_dir = os.path.join(UPLOAD_BASE, session_id)
-
-    # 📂 GUARDAR ARCHIVOS
-    for file in files:
-        filename = os.path.basename(file.filename)
     os.makedirs(input_dir, exist_ok=True)
 
+    # 📂 GUARDAR ARCHIVOS
     for file in files:
         filename = os.path.basename(file.filename)
         save_path = os.path.join(input_dir, filename)
@@ -106,54 +102,35 @@ def upload_and_process(
         with open(save_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-    # ⚙️ PROCESAR PDFs (debe devolver lista de {nit, file})
+    # ⚙️ PROCESAR PDFs
     results = process_pdfs(input_dir)
 
     if not results:
         return {"message": "No se encontraron coincidencias"}
 
-    # ☁️ CONFIG SHAREPOINT
-    drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
+    # 🔐 TOKEN GRAPH
     graph_token = get_graph_token()
-
-    headers = {
-        "Authorization": f"Bearer {graph_token}",
-        "Content-Type": "application/pdf"
-    }
 
     uploaded_files = []
 
-    # 🚀 SUBIR CADA PDF
+    # 🚀 SUBIDA (SIMPLIFICADA Y CORRECTA)
     for item in results:
-        if isinstance(item, str):
-            result_file = item
-            nit = os.path.basename(item).replace(".pdf", "")
-        else:
-            result_file = item["file"]
-            nit = item["nit"]
+        result_file = item["file"]
+        nit = item["nit"]
 
         try:
-            filename = os.path.basename(result_file)
+            res = upload_to_sharepoint(
+                result_file,
+                f"Bearer {graph_token}"  # 👈 importante
+            )
 
-            sharepoint_path = f"FC CONSOLIDADOS/{filename}"
+            print(f"✅ Subido NIT {nit}")
+            print("📂 URL:", res.get("webUrl"))
 
-            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
-
-            with open(result_file, "rb") as f:
-                res = requests.put(url, headers=headers, data=f)
-
-            if res.status_code in [200, 201]:
-                data = res.json()
-
-                print(f"✅ Subido NIT {nit}")
-                print("📂 URL:", data.get("webUrl"))
-
-                uploaded_files.append({
-                    "nit": nit,
-                    "url": data.get("webUrl")
-                })
-            else:
-                print(f"⚠️ Error NIT {nit}:", res.status_code, res.text)
+            uploaded_files.append({
+                "nit": nit,
+                "url": res.get("webUrl")
+            })
 
         except Exception as e:
             print(f"❌ ERROR NIT {nit}:", str(e))
