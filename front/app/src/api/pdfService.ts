@@ -22,5 +22,6 @@ export const uploadAndProcess = (formData: FormData, token: string) => {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    responseType: "blob", // 🔥 ESTO FALTABA
   });
 };
