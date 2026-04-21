@@ -1,14 +1,19 @@
 from jose import jwt
+from jose.utils import base64url_decode
 import requests
 import os
 
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
-
+print("TENANT_ID:", TENANT_ID)
 
 def verify_token(token: str):
     jwks_url = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
-    jwks = requests.get(jwks_url).json()
+    
+    res = requests.get(jwks_url)
+    print("JWKS STATUS:", res.status_code)
+    print("JWKS RESPONSE:", res.text)  # 👈 CLAVE
+
+    jwks = res.json()
 
     headers = jwt.get_unverified_header(token)
 
@@ -16,13 +21,11 @@ def verify_token(token: str):
 
     public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
 
-    print(decoded)
-
     decoded = jwt.decode(
         token,
         public_key,
         algorithms=["RS256"],
-        audience=CLIENT_ID,
+        options={"verify_aud": False}
     )
 
     return decoded

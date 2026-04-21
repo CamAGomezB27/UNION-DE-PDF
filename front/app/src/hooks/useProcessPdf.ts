@@ -46,7 +46,7 @@ export const useProcessPdf = () => {
         account: accounts[0],
       });
 
-      const accessToken = tokenResponse.accessToken;
+      const idToken = tokenResponse.idToken;
 
       addLog("process", "Preparando archivos...");
 
@@ -64,7 +64,7 @@ export const useProcessPdf = () => {
       }, 300);
 
       // 🚀 enviar con token (TU LÓGICA ORIGINAL)
-      await uploadAndProcess(formData, accessToken);
+      await uploadAndProcess(formData, idToken);
 
       clearInterval(interval);
       setProgress(100);
