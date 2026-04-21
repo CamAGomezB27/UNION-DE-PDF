@@ -3,6 +3,7 @@ import requests
 import re
 from datetime import datetime
 from pdf2image import convert_from_path
+from app.utils.month_utils import get_month_name
 import pytesseract
 
 
@@ -64,6 +65,18 @@ def ensure_folder(drive_id, path, token):
         "Content-Type": "application/json"
     }, json=body)
 
+def file_exists(drive_id, path, token):
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{path}"
+
+    headers = {
+        "Authorization": token,
+        "Accept": "application/json"
+    }
+
+    res = requests.get(url, headers=headers)
+
+    return res.status_code == 200
+
 def upload_to_sharepoint(file_path: str, token: str):
     filename = os.path.basename(file_path)
 
@@ -75,13 +88,34 @@ def upload_to_sharepoint(file_path: str, token: str):
 
     base = "FC CONSOLIDADOS"
     year_path = f"{base}/{year}"
-    month_path = f"{year_path}/{month}"
+    month_name = get_month_name(month)
+    month_path = f"{year_path}/{month_name}"
 
     ensure_folder(drive_id, base, token)
     ensure_folder(drive_id, year_path, token)
     ensure_folder(drive_id, month_path, token)
 
     upload_path = f"{month_path}/{filename}"
+
+    if file_exists(drive_id, upload_path, token):
+        print(f"⚠️ Ya existe: {upload_path}")
+
+        # obtener metadata y devolver URL sin re-subir
+        meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"
+        
+        headers = {
+            "Authorization": token,
+            "Accept": "application/json"
+        }
+
+        meta_res = requests.get(meta_url, headers=headers)
+
+        web_url = None
+        if meta_res.status_code == 200:
+            web_url = meta_res.json().get("webUrl")
+
+        return {"webUrl": web_url, "skipped": True}
+    
 
     # ✅ UPLOAD CORRECTO
     url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}:/content"
