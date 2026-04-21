@@ -1,33 +1,91 @@
 from app.utils.regex_utils import extract_nit
+from rapidfuzz import fuzz
+import re
 
-def match_files(files_a, files_b):
-    matches = []
 
-    for file_a in files_a:
-        nit_a = extract_nit(file_a["text"], file_a["filename"])
-        if not nit_a:
-            continue
+def normalize_name(name):
 
-        for file_b in files_b:
-            nit_b = extract_nit(file_b["text"], file_b["filename"])
-            if not nit_b:
-                continue
 
-            # 🔥 NORMALIZAR (por si acaso)
-            nit_a_base = nit_a[:9]
-            nit_b_base = nit_b[:9]
+    name = name.upper()
 
-            print("----")
-            print("A:", file_a["filename"], "->", nit_a_base)
-            print("B:", file_b["filename"], "->", nit_b_base)
+    # ❌ eliminar números (clave)
+    name = re.sub(r"\d+", " ", name)
 
-            if nit_a_base == nit_b_base:
-                print("✅ MATCH!")
+    # limpiar símbolos
+    name = re.sub(r"[^A-Z ]", " ", name)
 
-                matches.append({
-                    "id": nit_a_base,
-                    "file_a": file_a["path"],
-                    "file_b": file_b["path"]
-                })
+    # normalizar espacios
+    name = re.sub(r"\s+", " ", name).strip()
 
-    return matches
+    # 🔥 eliminar ruido común
+    stopwords = [
+        "FACTURA", "FC", "PDF",
+        "SAS", "SA", "LTDA",
+        "COLOMBIA", "BOGOTA",
+        "DE", "DEL", "LA",
+        "TV"
+    ]
+
+    for word in stopwords:
+        name = name.replace(word, "")
+
+    return re.sub(r"\s+", " ", name).strip()
+
+
+def group_by_nit(files):
+    groups = {}
+
+    for file in files:
+        filename = file["filename"]
+        text = file["text"]
+
+        print("\n====== DEBUG OCR ======")
+        print(f"Archivo: {filename}")
+        print(text[:500])
+        print("=======================\n")
+
+        nit = extract_nit(text, filename)
+        name = normalize_name(filename)
+
+        print(f"NIT detectado: {nit}")
+        print(f"Nombre normalizado: {name}")
+
+        matched = False
+
+        # 🔥 BUSCAR SI YA EXISTE UN GRUPO COMPATIBLE
+        for key, data in groups.items():
+
+            # 1️⃣ MATCH POR NIT
+            if nit and key == nit[:9]:
+                print(f"✅ MATCH POR NIT: {nit}")
+
+                if file["path"] not in data["paths"]:
+                    data["paths"].append(file["path"])
+
+                matched = True
+                break
+
+            # 2️⃣ MATCH POR NOMBRE (FUZZY)
+            score = fuzz.partial_ratio(name, data["name"])
+
+            if score > 85:
+                print(f"🟡 MATCH POR NOMBRE ({score}) con {data['name']}")
+
+                if file["path"] not in data["paths"]:
+                    data["paths"].append(file["path"])
+
+                matched = True
+                break
+
+        # 🔥 SI NO HIZO MATCH → CREAR NUEVO GRUPO
+        if not matched:
+            key = nit[:9] if nit else f"GROUP_{len(groups)}"
+
+            print(f"🆕 NUEVO GRUPO: {key}")
+
+            groups[key] = {
+                "paths": [file["path"]],
+                "name": name
+            }
+
+    return groups

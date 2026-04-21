@@ -4,13 +4,11 @@ import uuid
 import requests
 
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List
 from PyPDF2 import PdfMerger
 
 from app.services.processor import process_pdfs
-from app.services.sharepoint import upload_to_sharepoint
 from app.utils.auth import verify_token
 from app.services.graph_auth import get_graph_token
 
@@ -36,7 +34,7 @@ def health():
 # 📎 Merge manual
 # =========================
 @router.post("/merge")
-def merge_pdfs(request: MergeRequest):
+def merge_pdfs_manual(request: MergeRequest):
     merger = PdfMerger()
 
     for file_path in request.files:
@@ -47,29 +45,10 @@ def merge_pdfs(request: MergeRequest):
     merger.write(output_path)
     merger.close()
 
-    return FileResponse(
-        path=output_path,
-        media_type="application/pdf",
-        filename=f"{request.outputName}.pdf"
-    )
-
-# =========================
-# ⚙️ Procesamiento directo
-# =========================
-@router.post("/process")
-def process():
-    results = process_pdfs()
-
-    if not results:
-        return {"message": "No se encontraron coincidencias"}
-
-    file_path = results[0]
-
-    return FileResponse(
-        path=file_path,
-        media_type='application/pdf',
-        filename="resultado.pdf"
-    )
+    return {
+        "message": "PDF unido correctamente",
+        "file": output_path
+    }
 
 # =========================
 # 📂 Listar archivos
@@ -97,9 +76,7 @@ def upload_and_process(
     files: list[UploadFile] = File(...),
     authorization: str = Header(None)
 ):
-    # 🔐 =========================
-    # VALIDACIÓN DE TOKEN
-    # =========================
+    # 🔐 VALIDACIÓN DE TOKEN
     if not authorization:
         raise HTTPException(status_code=401, detail="No autorizado")
 
@@ -113,83 +90,77 @@ def upload_and_process(
         print("❌ ERROR REAL TOKEN:", str(e))
         raise HTTPException(status_code=401, detail=str(e))
 
-    # 📁 =========================
-    # CREAR SESIÓN
-    # =========================
+    # 📁 CREAR SESIÓN
     session_id = str(uuid.uuid4())
     input_dir = os.path.join(UPLOAD_BASE, session_id)
 
-    folder_a = os.path.join(input_dir, "folder_a")
-    folder_b = os.path.join(input_dir, "folder_b")
-
-    os.makedirs(folder_a, exist_ok=True)
-    os.makedirs(folder_b, exist_ok=True)
-
-    # 📂 =========================
-    # GUARDAR ARCHIVOS
-    # =========================
+    # 📂 GUARDAR ARCHIVOS
     for file in files:
         filename = os.path.basename(file.filename)
-        filename_upper = filename.upper()
+    os.makedirs(input_dir, exist_ok=True)
 
-        if "BEC" in filename_upper:
-            save_path = os.path.join(folder_b, filename)
-        else:
-            save_path = os.path.join(folder_a, filename)
+    for file in files:
+        filename = os.path.basename(file.filename)
+        save_path = os.path.join(input_dir, filename)
 
         with open(save_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-    # ⚙️ =========================
-    # PROCESAR PDFs
-    # =========================
-    results = process_pdfs(folder_a, folder_b)
+    # ⚙️ PROCESAR PDFs (debe devolver lista de {nit, file})
+    results = process_pdfs(input_dir)
 
     if not results:
         return {"message": "No se encontraron coincidencias"}
 
-    result_file = results[0]
+    # ☁️ CONFIG SHAREPOINT
+    drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
+    graph_token = get_graph_token()
 
-    # ☁️ =========================
-    # SUBIR A SHAREPOINT
-    # =========================
-    sharepoint_ok = False
+    headers = {
+        "Authorization": f"Bearer {graph_token}",
+        "Content-Type": "application/pdf"
+    }
 
-    try:
-        drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
-        graph_token = get_graph_token()
+    uploaded_files = []
 
-        filename = os.path.basename(result_file)
-
-        sharepoint_path = f"FC CONSOLIDADOS/2024/{user_email}/{filename}"
-
-        url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
-
-        headers = {
-            "Authorization": f"Bearer {graph_token}",
-            "Content-Type": "application/pdf"
-        }
-
-        with open(result_file, "rb") as f:
-            res = requests.put(url, headers=headers, data=f)
-
-        if res.status_code in [200, 201]:
-            print("✅ Archivo subido a SharePoint")
-            sharepoint_ok = True
+    # 🚀 SUBIR CADA PDF
+    for item in results:
+        if isinstance(item, str):
+            result_file = item
+            nit = os.path.basename(item).replace(".pdf", "")
         else:
-            print("⚠️ Error SharePoint:", res.status_code, res.text)
+            result_file = item["file"]
+            nit = item["nit"]
 
-    except Exception as e:
-        print("❌ ERROR SHAREPOINT:", str(e))
+        try:
+            filename = os.path.basename(result_file)
 
-    # 📥 =========================
-    # RESPUESTA
-    # =========================
-    if not sharepoint_ok:
-        print("⬇️ Descargando archivo porque SharePoint falló")
+            sharepoint_path = f"FC CONSOLIDADOS/{filename}"
 
-    return FileResponse(
-        path=result_file,
-        media_type="application/pdf",
-        filename="resultado.pdf"
-    )
+            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{sharepoint_path}:/content"
+
+            with open(result_file, "rb") as f:
+                res = requests.put(url, headers=headers, data=f)
+
+            if res.status_code in [200, 201]:
+                data = res.json()
+
+                print(f"✅ Subido NIT {nit}")
+                print("📂 URL:", data.get("webUrl"))
+
+                uploaded_files.append({
+                    "nit": nit,
+                    "url": data.get("webUrl")
+                })
+            else:
+                print(f"⚠️ Error NIT {nit}:", res.status_code, res.text)
+
+        except Exception as e:
+            print(f"❌ ERROR NIT {nit}:", str(e))
+
+    # 📥 RESPUESTA FINAL
+    return {
+        "message": "Proceso completado",
+        "total": len(uploaded_files),
+        "files": uploaded_files
+    }
