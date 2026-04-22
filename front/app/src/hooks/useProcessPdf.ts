@@ -3,10 +3,13 @@ import { useState } from "react";
 import { uploadAndProcess } from "../api/pdfService";
 import { loginRequest } from "../auth/authConfig";
 import type { LogEntry, LogType } from "../types/pdf";
+import { getProgress } from "../api/progressService";
+import { useRef } from "react";
 
 export const useProcessPdf = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const lastStatusRef = useRef<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const { instance, accounts } = useMsal();
@@ -29,55 +32,83 @@ export const useProcessPdf = () => {
   const clearLogs = () => setLogs([]);
 
   const merge = async (files: FileList) => {
-    try {
-      setIsLoading(true);
-      setProgress(0);
+  try {
+    setIsLoading(true);
+    setProgress(0);
 
-      if (!accounts.length) {
-        addLog("error", "No hay usuario autenticado");
-        return;
-      }
+        const tokenResponse = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account: accounts[0],
+    });
 
-      addLog("process", "Autenticando usuario...");
+    const accessToken = tokenResponse.accessToken;
 
-      // 🔐 TOKEN DEL USUARIO
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append("files", file);
+    });
 
-      const idToken = tokenResponse.idToken;
+    addLog("process", "Inicio lectura de archivos...");
 
-      addLog("process", "Preparando archivos...");
+    const res = await uploadAndProcess(formData, accessToken);
 
-      // 📦 FormData
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append("files", file);
-      });
+    const jobId = res.data.job_id;
 
-      addLog("process", "Subiendo archivos...");
-
-      // 🔥 progreso simulado
-      const interval = setInterval(() => {
-        setProgress((prev) => (prev >= 90 ? prev : prev + 10));
-      }, 300);
-
-      // 🚀 enviar con token (TU LÓGICA ORIGINAL)
-      await uploadAndProcess(formData, idToken);
-
-      clearInterval(interval);
-      setProgress(100);
-
-      addLog("success", "Proceso completado correctamente");
-    } catch (err) {
-      console.error(err);
-      addLog("error", "Error procesando archivos");
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => setProgress(0), 1200);
+    if (!jobId) {
+      throw new Error("job_id no recibido del backend");
     }
-  };
+    if (!jobId) return;
+
+    // 🚀 2. polling de progreso REAL
+    const interval = setInterval(async () => {
+      try {
+        const progressRes = await getProgress(jobId);
+        const data = progressRes.data;
+
+        console.log("PROGRESS RESPONSE:", data);
+        setProgress(Math.min(100, Math.max(0, Number(data?.progress ?? 0))));
+
+        if (data.status && data.status !== lastStatusRef.current) {
+          addLog("process", data.status);
+          lastStatusRef.current = data.status;
+        }
+        // 🧠 cuando termina
+        if (data.progress >= 100 || data.status?.includes("SharePoint") || data.status?.includes("existían")) { 
+          clearInterval(interval);
+
+          const summary = data.summary;
+
+          if (!summary) return;
+
+          if (summary.uploaded === 0 && summary.skipped === summary.total) {
+            addLog("warn", "Todos los archivos ya existían en SharePoint");
+          } 
+          else if (summary.uploaded === summary.total) {
+            addLog("success", "Todos los archivos fueron subidos correctamente");
+          } 
+          else if (summary.uploaded > 0 && summary.skipped > 0) {
+            addLog("success", "Proceso completado: algunos archivos ya existían");
+          } 
+          else {
+            addLog("error", "Proceso completado con errores");
+          }
+
+          setIsLoading(false);
+          setTimeout(() => setProgress(0), 1200);
+        }
+      } catch (err) {
+        console.error(err);
+        clearInterval(interval);
+        addLog("error", "Error leyendo progreso");
+      }
+    }, 800);
+
+  } catch (err) {
+    console.error(err);
+    addLog("error", "Error procesando archivos");
+    setIsLoading(false);
+  }
+};
 
   return {
     merge,

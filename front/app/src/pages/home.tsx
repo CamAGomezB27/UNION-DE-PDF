@@ -140,11 +140,9 @@ export default function Home() {
             </span>
 
           <FolderSelector 
-
-        onSelect={merge} 
-        isLoading={isLoading} 
-        progress={progress} 
-      
+              onSelect={merge} 
+              isLoading={isLoading} 
+              progress={progress} 
            />
         </main>
 

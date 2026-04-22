@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
+client_id = os.getenv("AZURE_CLIENT_ID")
 
 JWKS_URL = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
 
@@ -32,8 +33,20 @@ def verify_token(token: str):
             token,
             key=key,
             algorithms=["RS256"],
-            audience=os.getenv("AZURE_CLIENT_ID"),
+            options={"verify_aud": False},  # 👈 dejamos de pelear con Azure aquí
         )
+        aud = decoded.get("aud")
+
+        valid_audiences = [
+            client_id,
+            f"api://{client_id}"
+        ]
+
+        if aud not in valid_audiences:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Invalid audience: {aud}"
+            )
 
         return decoded
 
