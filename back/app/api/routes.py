@@ -156,20 +156,23 @@ def upload_and_process(
                 f"Bearer {graph_token}"
             )
 
-            print(f"✅ Subido NIT {nit}")
-
-            uploaded += 1
+            if res.get("status") == "skipped":
+                skipped += 1
+                print(f"⚠️ SKIP NIT {nit}")
+            else:
+                uploaded += 1
+                print(f"✅ Subido NIT {nit}")
 
             uploaded_files.append({
                 "nit": nit,
                 "url": res.get("webUrl"),
-                "status": "uploaded"
+                "status": res.get("status", "uploaded")
             })
 
         except Exception as e:
             msg = str(e).lower()
 
-            # 🟡 YA EXISTE (NO ES ERROR REAL)
+            #🟡 YA EXISTE (NO ES ERROR REAL)
             if "ya existe" in msg or "already exists" in msg:
                 print(f"⚠️ SKIP NIT {nit}")
 
@@ -199,10 +202,13 @@ def upload_and_process(
     # 📥 STATUS FINAL (DESPUÉS DEL LOOP)
     if uploaded == 0 and skipped == total:
         status = "todos los archivos ya estaban en SharePoint"
+
     elif uploaded > 0 and skipped > 0:
         status = "proceso completado con archivos existentes"
-    elif uploaded == total:
+
+    elif uploaded > 0 and skipped == 0:
         status = "todos los archivos subidos correctamente"
+
     else:
         status = "proceso completado con errores"
 

@@ -114,7 +114,10 @@ def upload_to_sharepoint(file_path: str, token: str):
         if meta_res.status_code == 200:
             web_url = meta_res.json().get("webUrl")
 
-        return {"webUrl": web_url, "skipped": True}
+        return {
+            "webUrl": web_url,
+            "status": "skipped"
+        }
     
 
     # ✅ UPLOAD CORRECTO
@@ -139,4 +142,7 @@ def upload_to_sharepoint(file_path: str, token: str):
     if meta_res.status_code == 200:
         web_url = meta_res.json().get("webUrl")
 
-    return {"webUrl": web_url}
+    return {
+        "webUrl": web_url,
+        "status": "uploaded"
+    }
