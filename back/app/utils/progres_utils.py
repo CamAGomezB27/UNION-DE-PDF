@@ -1,11 +1,24 @@
-from typing import Dict
+import json
+import redis
 
-jobs: Dict[str, dict] = {}
+redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+
+def create_job(job_id: str):
+    redis_client.set(job_id, json.dumps({
+        "progress": 0,
+        "status": "iniciando"
+    }))
 
 def set_progress(job_id: str, progress: int, status: str = None):
-    if job_id not in jobs:
+    data = redis_client.get(job_id)
+
+    if not data:
         return
 
-    jobs[job_id]["progress"] = progress
+    job = json.loads(data)
+
+    job["progress"] = progress
     if status:
-        jobs[job_id]["status"] = status
+        job["status"] = status
+
+    redis_client.set(job_id, json.dumps(job))

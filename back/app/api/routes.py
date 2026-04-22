@@ -2,6 +2,8 @@ import os
 import shutil
 import uuid
 import time
+import json
+import redis
 
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from pydantic import BaseModel
@@ -12,10 +14,11 @@ from app.services.processor import process_pdfs
 from app.utils.auth import verify_token
 from app.services.graph_auth import get_graph_token
 from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
-from app.utils.progres_utils import jobs  # 🆕 IMPORTAMOS EL DICCIONARIO DE PROGRESO
+from app.utils.progres_utils import set_progress, create_job
 from app.utils.progres_utils import set_progress  # 🆕 IMPORTAMOS LA FUNCIÓN DE PROGRESO
 
 router = APIRouter()
+redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 UPLOAD_BASE = "storage/input"
 
@@ -80,11 +83,12 @@ def upload_and_process(
     authorization: str = Header(None)
 ):
     job_id = str(uuid.uuid4())
+    create_job(job_id)
 
-    jobs[job_id] = {
+    redis_client.set(job_id, json.dumps({
         "progress": 0,
         "status": "iniciando"
-    }
+    }))
 
     # 🔐 VALIDACIÓN DE TOKEN
     if not authorization:
@@ -232,4 +236,9 @@ def upload_and_process(
 
 @router.get("/progress/{job_id}")
 def get_progress(job_id: str):
-    return jobs.get(job_id, {"error": "job no existe"})
+    data = redis_client.get(job_id)
+
+    if not data:
+        return {"error": "job no existe"}
+
+    return json.loads(data)
