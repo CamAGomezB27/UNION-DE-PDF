@@ -2,21 +2,9 @@ import { useMsal } from "@azure/msal-react";
 import { useState, useRef, useEffect } from "react";
 import { uploadAndProcess } from "../api/pdfService";
 import { loginRequest } from "../auth/authConfig";
-import type { LogEntry, LogType, ProcessedFile } from "../types/pdf";
+import type { LogEntry, LogType, ProgressResponse } from "../types/pdf";
 import { getProgress } from "../api/progressService";
 
-type ProgressResponse = {
-  progress: number;
-  status: string;
-  summary?: {
-    total: number;
-    uploaded: number;
-    skipped: number;
-    errors: number;
-  };
-  files?: ProcessedFile[];
-  logs?: string[];
-};
 
 export const useProcessPdf = () => {
   const [isLoading, setIsLoading] = useState(false);

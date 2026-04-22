@@ -11,6 +11,19 @@ export type LogEntry = {
   message: string;
 };
 
+export type ProgressResponse = {
+  progress: number;
+  status: string;
+  summary?: {
+    total: number;
+    uploaded: number;
+    skipped: number;
+    errors: number;
+  };
+  files?: ProcessedFile[];
+  logs?: string[];
+};
+
 export type ProcessedFile = {
   nit: string;
   status: "uploaded" | "skipped" | "error";
