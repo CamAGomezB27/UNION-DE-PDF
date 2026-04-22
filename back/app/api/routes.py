@@ -16,7 +16,8 @@ from app.services.graph_auth import get_graph_token
 from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
 from app.utils.progres_utils import set_progress, create_job
 from app.utils.progres_utils import set_progress  # 🆕 IMPORTAMOS LA FUNCIÓN DE PROGRESO
-from app.utils.log_utils import add_log
+from app.utils.log_utils import add_log, log
+from app.utils.context import set_current_job_id
 
 router = APIRouter()
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
@@ -84,8 +85,10 @@ def upload_and_process(
     authorization: str = Header(None)
 ):
     job_id = str(uuid.uuid4())
-    create_job(job_id)
-
+    # 🌍 Establecer el job_id en contexto global
+    set_current_job_id(job_id)
+    
+    # Inicializar job con logs vacíos
     redis_client.set(job_id, json.dumps({
         "progress": 0,
         "status": "iniciando",

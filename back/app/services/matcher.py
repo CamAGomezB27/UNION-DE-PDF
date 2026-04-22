@@ -1,4 +1,5 @@
 from app.utils.regex_utils import extract_nit
+from app.utils.log_utils import log
 from rapidfuzz import fuzz
 import re
 
@@ -39,16 +40,16 @@ def group_by_nit(files):
         filename = file["filename"]
         text = file["text"]
 
-        print("\n====== DEBUG OCR ======")
-        print(f"Archivo: {filename}")
-        print(text[:500])
-        print("=======================\n")
+        log("\n====== DEBUG OCR ======")
+        log(f"Archivo: {filename}")
+        log(text[:500])
+        log("=======================\n")
 
         nit = extract_nit(text, filename)
         name = normalize_name(filename)
 
-        print(f"NIT detectado: {nit}")
-        print(f"Nombre normalizado: {name}")
+        log(f"NIT detectado: {nit}")
+        log(f"Nombre normalizado: {name}")
 
         matched = False
 
@@ -57,7 +58,7 @@ def group_by_nit(files):
 
             # 1️⃣ MATCH POR NIT
             if nit and key == nit[:9]:
-                print(f"✅ MATCH POR NIT: {nit}")
+                log(f"✅ MATCH POR NIT: {nit}")
 
                 if file["path"] not in data["paths"]:
                     data["paths"].append(file["path"])
@@ -69,7 +70,7 @@ def group_by_nit(files):
             score = fuzz.partial_ratio(name, data["name"])
 
             if score > 85:
-                print(f"🟡 MATCH POR NOMBRE ({score}) con {data['name']}")
+                log(f"🟡 MATCH POR NOMBRE ({score}) con {data['name']}")
 
                 if file["path"] not in data["paths"]:
                     data["paths"].append(file["path"])
@@ -81,7 +82,7 @@ def group_by_nit(files):
         if not matched:
             key = nit[:9] if nit else f"GROUP_{len(groups)}"
 
-            print(f"🆕 NUEVO GRUPO: {key}")
+            log(f"🆕 NUEVO GRUPO: {key}")
 
             groups[key] = {
                 "paths": [file["path"]],

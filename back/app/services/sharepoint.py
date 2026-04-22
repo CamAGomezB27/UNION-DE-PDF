@@ -5,7 +5,7 @@ from datetime import datetime
 from pdf2image import convert_from_path
 from app.utils.month_utils import get_month_name
 import pytesseract
-from app.utils.log_utils import add_log
+from app.utils.log_utils import add_log, log
 
 
 def extract_date_from_pdf(file_path):
@@ -29,7 +29,7 @@ def extract_date_from_pdf(file_path):
             return year, month
 
     except Exception as e:
-        print("Error leyendo fecha:", e)
+        log("Error leyendo fecha: " + str(e))
 
     today = datetime.today()
     return str(today.year), f"{today.month:02}"
@@ -99,7 +99,7 @@ def upload_to_sharepoint(file_path: str, token: str, job_id: str):
     upload_path = f"{month_path}/{filename}"
 
     if file_exists(drive_id, upload_path, token):
-        print(f"⚠️ Ya existe: {upload_path}")
+        log(f"⚠️ Ya existe: {upload_path}")
 
         # obtener metadata y devolver URL sin re-subir
         meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"
@@ -132,7 +132,7 @@ def upload_to_sharepoint(file_path: str, token: str, job_id: str):
     with open(file_path, "rb") as f:
         res = requests.put(url, headers=headers, data=f)
 
-    print("📦 RESPUESTA UPLOAD:", res.text)
+    log("📦 RESPUESTA UPLOAD: " + res.text)
 
     # ✅ METADATA CORRECTA
     meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"

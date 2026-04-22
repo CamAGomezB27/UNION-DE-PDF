@@ -21,7 +21,5 @@ def set_progress(job_id: str, progress: int, status: str = None):
     if status:
         job["status"] = status
 
-    redis_client.set(job_id, json.dumps({
-        "progress": int(progress),
-        "status": status
-    }))
+    # ✅ Preservar logs existentes
+    redis_client.set(job_id, json.dumps(job))
