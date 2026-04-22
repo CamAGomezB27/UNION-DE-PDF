@@ -2,6 +2,8 @@ import os
 import shutil
 import uuid
 import time
+import json
+import redis
 
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from pydantic import BaseModel
@@ -12,10 +14,13 @@ from app.services.processor import process_pdfs
 from app.utils.auth import verify_token
 from app.services.graph_auth import get_graph_token
 from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
-from app.utils.progres_utils import jobs  # 🆕 IMPORTAMOS EL DICCIONARIO DE PROGRESO
+from app.utils.progres_utils import set_progress, create_job
 from app.utils.progres_utils import set_progress  # 🆕 IMPORTAMOS LA FUNCIÓN DE PROGRESO
+from app.utils.log_utils import add_log, log
+from app.utils.context import set_current_job_id
 
 router = APIRouter()
+redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 UPLOAD_BASE = "storage/input"
 
@@ -80,11 +85,15 @@ def upload_and_process(
     authorization: str = Header(None)
 ):
     job_id = str(uuid.uuid4())
-
-    jobs[job_id] = {
+    # 🌍 Establecer el job_id en contexto global
+    set_current_job_id(job_id)
+    
+    # Inicializar job con logs vacíos
+    redis_client.set(job_id, json.dumps({
         "progress": 0,
-        "status": "iniciando"
-    }
+        "status": "iniciando",
+        "logs": []
+    }))
 
     # 🔐 VALIDACIÓN DE TOKEN
     if not authorization:
@@ -153,25 +162,29 @@ def upload_and_process(
         try:
             res = upload_to_sharepoint(
                 result_file,
-                f"Bearer {graph_token}"
+                f"Bearer {graph_token}",
+                job_id
             )
 
-            print(f"✅ Subido NIT {nit}")
-
-            uploaded += 1
+            if res.get("status") == "skipped":
+                skipped += 1
+                add_log(job_id, f"⚠️ SKIP NIT {nit}")
+            else:
+                uploaded += 1
+                add_log(job_id, f"✅ Subido NIT {nit}")
 
             uploaded_files.append({
                 "nit": nit,
                 "url": res.get("webUrl"),
-                "status": "uploaded"
+                "status": res.get("status", "uploaded")
             })
 
         except Exception as e:
             msg = str(e).lower()
 
-            # 🟡 YA EXISTE (NO ES ERROR REAL)
+            #🟡 YA EXISTE (NO ES ERROR REAL)
             if "ya existe" in msg or "already exists" in msg:
-                print(f"⚠️ SKIP NIT {nit}")
+                add_log(job_id, f"⚠️ SKIP NIT {nit}")
 
                 skipped += 1
 
@@ -199,10 +212,13 @@ def upload_and_process(
     # 📥 STATUS FINAL (DESPUÉS DEL LOOP)
     if uploaded == 0 and skipped == total:
         status = "todos los archivos ya estaban en SharePoint"
+
     elif uploaded > 0 and skipped > 0:
         status = "proceso completado con archivos existentes"
-    elif uploaded == total:
+
+    elif uploaded > 0 and skipped == 0:
         status = "todos los archivos subidos correctamente"
+
     else:
         status = "proceso completado con errores"
 
@@ -226,4 +242,9 @@ def upload_and_process(
 
 @router.get("/progress/{job_id}")
 def get_progress(job_id: str):
-    return jobs.get(job_id, {"error": "job no existe"})
+    data = redis_client.get(job_id)
+
+    if not data:
+        return {"error": "job no existe"}
+
+    return json.loads(data)

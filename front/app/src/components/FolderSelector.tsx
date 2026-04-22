@@ -4,14 +4,21 @@ type Props = {
   onSelect: (files: FileList) => void;
   isLoading: boolean;
   progress: number;
+  inputRef?: React.RefObject<HTMLInputElement>;
+  setInputRef?: (input: HTMLInputElement | null) => void;
 };
 
-export default function FolderSelector({ onSelect, isLoading, progress }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export default function FolderSelector({ onSelect, isLoading, progress, inputRef: externalInputRef, setInputRef }: Props) {
+  const internalInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = externalInputRef || internalInputRef;
 
   useEffect(() => {
-    if (inputRef.current) inputRef.current.setAttribute("webkitdirectory", "true");
-  }, []);
+    if (inputRef.current) {
+      inputRef.current.setAttribute("webkitdirectory", "true");
+      // Pasar la referencia del input al hook
+      setInputRef?.(inputRef.current);
+    }
+  }, [inputRef, setInputRef]);
 
   return (
     <div className="space-y-5">
