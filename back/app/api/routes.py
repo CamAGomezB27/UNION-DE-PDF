@@ -5,7 +5,7 @@ import time
 import json
 import redis
 
-from fastapi import APIRouter, UploadFile, File, Header, HTTPException
+from fastapi import APIRouter, UploadFile, File, Header, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List
 from PyPDF2 import PdfMerger
@@ -14,8 +14,7 @@ from app.services.processor import process_pdfs
 from app.utils.auth import verify_token
 from app.services.graph_auth import get_graph_token
 from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
-from app.utils.progres_utils import set_progress, create_job
-from app.utils.progres_utils import set_progress  # 🆕 IMPORTAMOS LA FUNCIÓN DE PROGRESO
+from app.utils.progres_utils import set_progress
 from app.utils.log_utils import add_log, log
 from app.utils.context import set_current_job_id
 
@@ -82,11 +81,11 @@ def get_files(path: str):
 @router.post("/upload-and-process")
 def upload_and_process(
     files: list[UploadFile] = File(...),
-    authorization: str = Header(None)
+    authorization: str = Header(None),
+    background_tasks: BackgroundTasks = None
 ):
     job_id = str(uuid.uuid4())
-    # 🌍 Establecer el job_id en contexto global
-    set_current_job_id(job_id)
+    print(f"✅ Nuevo job creado: {job_id}")
     
     # Inicializar job con logs vacíos
     redis_client.set(job_id, json.dumps({
@@ -94,22 +93,16 @@ def upload_and_process(
         "status": "iniciando",
         "logs": []
     }))
+    add_log(job_id, "🔹 Inicio de procesamiento de archivos")
+    print(f"📝 Job inicializado en Redis con progreso 0%")
 
-    # 🔐 VALIDACIÓN DE TOKEN
     if not authorization:
         raise HTTPException(status_code=401, detail="No autorizado")
 
     token = authorization.replace("Bearer ", "")
-    set_progress(job_id, 5, "validando token")
-
-    try:
-        user = verify_token(token)
-        print("TOKEN DECODED:", user)
-    except Exception as e:
-        print("❌ ERROR REAL TOKEN:", str(e))
-        raise HTTPException(status_code=401, detail=str(e))
 
     # 📁 CREAR SESIÓN
+    add_log(job_id, "📁 Creando sesión de subida")
     set_progress(job_id, 10, "creando sesión")
     session_id = str(uuid.uuid4())
     input_dir = os.path.join(UPLOAD_BASE, session_id)
@@ -129,32 +122,47 @@ def upload_and_process(
             "guardando archivos"
         )
 
-    # ⚙️ PROCESAR PDFs
+    background_tasks.add_task(run_background_job, job_id, input_dir, token)
+
+    return {
+        "job_id": job_id,
+        "message": "Proceso iniciado",
+        "status": "iniciando"
+    }
+
+
+def run_background_job(job_id: str, input_dir: str, token: str):
+    set_current_job_id(job_id)
+    add_log(job_id, "⚙️ Iniciando procesamiento de PDFs")
     set_progress(job_id, 20, "procesando PDFs")
+
+    try:
+        user = verify_token(token)
+        add_log(job_id, "✅ Token validado")
+    except Exception as e:
+        add_log(job_id, f"❌ ERROR TOKEN: {str(e)}")
+        set_progress(job_id, 100, "error en validación de token")
+        return
+
     results = process_pdfs(input_dir)
 
     if not results:
         set_progress(job_id, 100, "sin coincidencias")
-        return {
-            "job_id": job_id,
-            "message": "No se encontraron coincidencias",
-            "files": []
-        }
+        return
 
+    add_log(job_id, f"📌 {len(results)} PDFs detectados")
     set_progress(job_id, 25, f"{len(results)} PDFs detectados")
 
-    # 🔐 TOKEN GRAPH
+    add_log(job_id, "🔐 Obteniendo token Graph")
     set_progress(job_id, 50, "obteniendo token graph")
     graph_token = get_graph_token()
 
     uploaded_files = []
-
     total = len(results)
     uploaded = 0
     skipped = 0
     errors = 0
 
-    # 🚀 SUBIDA
     for idx, item in enumerate(results):
         result_file = item["file"]
         nit = item["nit"]
@@ -181,70 +189,55 @@ def upload_and_process(
 
         except Exception as e:
             msg = str(e).lower()
-
-            #🟡 YA EXISTE (NO ES ERROR REAL)
             if "ya existe" in msg or "already exists" in msg:
                 add_log(job_id, f"⚠️ SKIP NIT {nit}")
-
                 skipped += 1
-
                 uploaded_files.append({
                     "nit": nit,
                     "status": "skipped"
                 })
-
-            # 🔴 ERROR REAL
             else:
-                print(f"❌ ERROR NIT {nit}: {msg}")
-
+                add_log(job_id, f"❌ ERROR NIT {nit}: {msg}")
                 errors += 1
-
                 uploaded_files.append({
                     "nit": nit,
                     "status": "error",
                     "reason": msg
                 })
 
-        # 📊 PROGRESO
         progress = 50 + int(((idx + 1) / total) * 50)
         set_progress(job_id, progress, f"procesando NIT {nit}")
 
-    # 📥 STATUS FINAL (DESPUÉS DEL LOOP)
     if uploaded == 0 and skipped == total:
         status = "todos los archivos ya estaban en SharePoint"
-
     elif uploaded > 0 and skipped > 0:
         status = "proceso completado con archivos existentes"
-
     elif uploaded > 0 and skipped == 0:
         status = "todos los archivos subidos correctamente"
-
     else:
         status = "proceso completado con errores"
 
+    add_log(job_id, "✅ Finalizando proceso")
     set_progress(job_id, 95, "finalizando...")
-
-    time.sleep(0.2)  # 👈 fuerza pequeño delay para sync UI
-
+    time.sleep(0.2)
+    add_log(job_id, f"📌 Estado final: {status}")
     set_progress(job_id, 100, status)
-
-    return {
-        "job_id": job_id,
-        "message": status,
-        "summary": {
-            "total": total,
-            "uploaded": uploaded,
-            "skipped": skipped,
-            "errors": errors
-        },
-        "files": uploaded_files
-    }
 
 @router.get("/progress/{job_id}")
 def get_progress(job_id: str):
     data = redis_client.get(job_id)
 
     if not data:
+        print(f"❌ Job {job_id} no encontrado en Redis")
         return {"error": "job no existe"}
 
-    return json.loads(data)
+    job = json.loads(data)
+    
+    # Asegurar que el progreso es un número
+    job["progress"] = int(job.get("progress", 0))
+    job["logs"] = job.get("logs", [])
+    job["status"] = job.get("status", "")
+    
+    print(f"📤 Devolviendo progreso: {job['progress']}% | logs: {len(job['logs'])}")
+    
+    return job

@@ -13,6 +13,7 @@ def set_progress(job_id: str, progress: int, status: str = None):
     data = redis_client.get(job_id)
 
     if not data:
+        print(f"⚠️ Job {job_id} no encontrado en Redis")
         return
 
     job = json.loads(data)
@@ -23,3 +24,4 @@ def set_progress(job_id: str, progress: int, status: str = None):
 
     # ✅ Preservar logs existentes
     redis_client.set(job_id, json.dumps(job))
+    print(f"📊 Progreso actualizado: {progress}% - Status: {status}")
