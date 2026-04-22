@@ -16,6 +16,7 @@ from app.services.graph_auth import get_graph_token
 from app.services.sharepoint import upload_to_sharepoint  # ✅ CAMBIO
 from app.utils.progres_utils import set_progress, create_job
 from app.utils.progres_utils import set_progress  # 🆕 IMPORTAMOS LA FUNCIÓN DE PROGRESO
+from app.utils.log_utils import add_log
 
 router = APIRouter()
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
@@ -87,7 +88,8 @@ def upload_and_process(
 
     redis_client.set(job_id, json.dumps({
         "progress": 0,
-        "status": "iniciando"
+        "status": "iniciando",
+        "logs": []
     }))
 
     # 🔐 VALIDACIÓN DE TOKEN
@@ -157,15 +159,16 @@ def upload_and_process(
         try:
             res = upload_to_sharepoint(
                 result_file,
-                f"Bearer {graph_token}"
+                f"Bearer {graph_token}",
+                job_id
             )
 
             if res.get("status") == "skipped":
                 skipped += 1
-                print(f"⚠️ SKIP NIT {nit}")
+                add_log(job_id, f"⚠️ SKIP NIT {nit}")
             else:
                 uploaded += 1
-                print(f"✅ Subido NIT {nit}")
+                add_log(job_id, f"✅ Subido NIT {nit}")
 
             uploaded_files.append({
                 "nit": nit,
@@ -178,7 +181,7 @@ def upload_and_process(
 
             #🟡 YA EXISTE (NO ES ERROR REAL)
             if "ya existe" in msg or "already exists" in msg:
-                print(f"⚠️ SKIP NIT {nit}")
+                add_log(job_id, f"⚠️ SKIP NIT {nit}")
 
                 skipped += 1
 

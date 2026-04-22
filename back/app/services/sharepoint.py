@@ -5,6 +5,7 @@ from datetime import datetime
 from pdf2image import convert_from_path
 from app.utils.month_utils import get_month_name
 import pytesseract
+from app.utils.log_utils import add_log
 
 
 def extract_date_from_pdf(file_path):
@@ -77,14 +78,14 @@ def file_exists(drive_id, path, token):
 
     return res.status_code == 200
 
-def upload_to_sharepoint(file_path: str, token: str):
+def upload_to_sharepoint(file_path: str, token: str, job_id: str):
     filename = os.path.basename(file_path)
 
     drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
 
     year, month = extract_date_from_pdf(file_path)
 
-    print(f"📅 Año: {year}, Mes: {month}")
+    add_log(job_id, f"📅 Año: {year}, Mes: {month}")
 
     base = "FC CONSOLIDADOS"
     year_path = f"{base}/{year}"
