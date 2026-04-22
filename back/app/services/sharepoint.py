@@ -5,6 +5,7 @@ from datetime import datetime
 from pdf2image import convert_from_path
 from app.utils.month_utils import get_month_name
 import pytesseract
+from app.utils.log_utils import add_log, log
 
 
 def extract_date_from_pdf(file_path):
@@ -28,7 +29,7 @@ def extract_date_from_pdf(file_path):
             return year, month
 
     except Exception as e:
-        print("Error leyendo fecha:", e)
+        log("Error leyendo fecha: " + str(e))
 
     today = datetime.today()
     return str(today.year), f"{today.month:02}"
@@ -77,14 +78,14 @@ def file_exists(drive_id, path, token):
 
     return res.status_code == 200
 
-def upload_to_sharepoint(file_path: str, token: str):
+def upload_to_sharepoint(file_path: str, token: str, job_id: str):
     filename = os.path.basename(file_path)
 
     drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
 
     year, month = extract_date_from_pdf(file_path)
 
-    print(f"📅 Año: {year}, Mes: {month}")
+    add_log(job_id, f"📅 Año: {year}, Mes: {month}")
 
     base = "FC CONSOLIDADOS"
     year_path = f"{base}/{year}"
@@ -98,7 +99,7 @@ def upload_to_sharepoint(file_path: str, token: str):
     upload_path = f"{month_path}/{filename}"
 
     if file_exists(drive_id, upload_path, token):
-        print(f"⚠️ Ya existe: {upload_path}")
+        log(f"⚠️ Ya existe: {upload_path}")
 
         # obtener metadata y devolver URL sin re-subir
         meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"
@@ -114,7 +115,10 @@ def upload_to_sharepoint(file_path: str, token: str):
         if meta_res.status_code == 200:
             web_url = meta_res.json().get("webUrl")
 
-        return {"webUrl": web_url, "skipped": True}
+        return {
+            "webUrl": web_url,
+            "status": "skipped"
+        }
     
 
     # ✅ UPLOAD CORRECTO
@@ -128,7 +132,7 @@ def upload_to_sharepoint(file_path: str, token: str):
     with open(file_path, "rb") as f:
         res = requests.put(url, headers=headers, data=f)
 
-    print("📦 RESPUESTA UPLOAD:", res.text)
+    log("📦 RESPUESTA UPLOAD: " + res.text)
 
     # ✅ METADATA CORRECTA
     meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"
@@ -139,4 +143,7 @@ def upload_to_sharepoint(file_path: str, token: str):
     if meta_res.status_code == 200:
         web_url = meta_res.json().get("webUrl")
 
-    return {"webUrl": web_url}
+    return {
+        "webUrl": web_url,
+        "status": "uploaded"
+    }

@@ -10,6 +10,26 @@ export type LogEntry = {
   type: LogType;
   message: string;
 };
+
+export type ProgressResponse = {
+  progress: number;
+  status: string;
+  summary?: {
+    total: number;
+    uploaded: number;
+    skipped: number;
+    errors: number;
+  };
+  files?: ProcessedFile[];
+  logs?: string[];
+};
+
+export type ProcessedFile = {
+  nit: string;
+  status: "uploaded" | "skipped" | "error";
+  url?: string;
+  reason?: string;
+};
 // Interfaz para el estado del procesamiento
 export interface ProcessStatus {
   isLoading: boolean;

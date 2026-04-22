@@ -1,6 +1,7 @@
 import os
 import pytesseract
 from pdf2image import convert_from_path
+from app.utils.log_utils import log
 
 def read_all_pdfs(folder_path):
     files_data = []
@@ -24,6 +25,6 @@ def read_all_pdfs(folder_path):
                     })
 
                 except Exception as e:
-                    print(f"Error leyendo {filename}: {e}")
+                    log(f"Error leyendo {filename}: {e}")
 
     return files_data

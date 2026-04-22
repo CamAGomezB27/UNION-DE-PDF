@@ -1,13 +1,14 @@
 from PyPDF2 import PdfMerger
 import os
 from app.utils.name_utils import extract_fc_number
+from app.utils.log_utils import log
 
 OUTPUT_DIR = "storage/output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def merge_group(nit, file_paths):
     if len(file_paths) < 2:
-        print(f"⚠️ NIT {nit} sin coincidencias (solo 1 archivo)")
+        log(f"⚠️ NIT {nit} sin coincidencias (solo 1 archivo)")
         return None
 
     merger = PdfMerger()
