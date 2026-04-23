@@ -82,6 +82,7 @@ def get_files(path: str):
 def upload_and_process(
     files: list[UploadFile] = File(...),
     authorization: str = Header(None),
+    x_graph_token: str = Header(None, alias="X-Graph-Token"),
     background_tasks: BackgroundTasks = None
 ):
     job_id = str(uuid.uuid4())
@@ -122,7 +123,7 @@ def upload_and_process(
             "guardando archivos"
         )
 
-    background_tasks.add_task(run_background_job, job_id, input_dir, token)
+    background_tasks.add_task(run_background_job, job_id, input_dir, token, x_graph_token)
 
     return {
         "job_id": job_id,
@@ -131,7 +132,7 @@ def upload_and_process(
     }
 
 
-def run_background_job(job_id: str, input_dir: str, token: str):
+def run_background_job(job_id: str, input_dir: str, token: str, graph_token: str = None):
     set_current_job_id(job_id)
     add_log(job_id, "⚙️ Iniciando procesamiento de PDFs")
     set_progress(job_id, 20, "procesando PDFs")
@@ -139,6 +140,8 @@ def run_background_job(job_id: str, input_dir: str, token: str):
     try:
         user = verify_token(token)
         add_log(job_id, "✅ Token validado")
+        user_display = user.get("name") or user.get("preferred_username") or user.get("upn") or user.get("email") or "usuario"
+        add_log(job_id, f"👤 Usuario: {user_display}")
     except Exception as e:
         add_log(job_id, f"❌ ERROR TOKEN: {str(e)}")
         set_progress(job_id, 100, "error en validación de token")
@@ -153,9 +156,19 @@ def run_background_job(job_id: str, input_dir: str, token: str):
     add_log(job_id, f"📌 {len(results)} PDFs detectados")
     set_progress(job_id, 25, f"{len(results)} PDFs detectados")
 
-    add_log(job_id, "🔐 Obteniendo token Graph")
-    set_progress(job_id, 50, "obteniendo token graph")
-    graph_token = get_graph_token()
+    if graph_token:
+        add_log(job_id, "✅ Token Graph del usuario recibido")
+        add_log(job_id, "🔐 Usando token del usuario para SharePoint (se mostrará el usuario como modificador)")
+        # Ensure token has Bearer prefix
+        if not graph_token.startswith("Bearer "):
+            sharepoint_token = f"Bearer {graph_token}"
+        else:
+            sharepoint_token = graph_token
+    else:
+        add_log(job_id, "⚠️ No se recibió token Graph del usuario")
+        add_log(job_id, "🔐 Usando token de aplicación para SharePoint (mostrará 'Aplicación de SharePoint')")
+        graph_app_token = get_graph_token()
+        sharepoint_token = f"Bearer {graph_app_token}"
 
     uploaded_files = []
     total = len(results)
@@ -170,8 +183,9 @@ def run_background_job(job_id: str, input_dir: str, token: str):
         try:
             res = upload_to_sharepoint(
                 result_file,
-                f"Bearer {graph_token}",
-                job_id
+                sharepoint_token,
+                job_id,
+                user_display
             )
 
             if res.get("status") == "skipped":
