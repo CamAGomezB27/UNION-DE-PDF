@@ -1,7 +1,7 @@
 import { useMsal } from "@azure/msal-react";
 import { useState, useRef, useEffect } from "react";
 import { uploadAndProcess } from "../api/pdfService";
-import { loginRequest } from "../auth/authConfig";
+import { loginRequest, graphRequest } from "../auth/authConfig";
 import type { LogEntry, LogType, ProgressResponse } from "../types/pdf";
 import { getProgress } from "../api/progressService";
 
@@ -69,6 +69,20 @@ export const useProcessPdf = () => {
 
       const accessToken = tokenResponse.accessToken;
 
+      // Acquire Graph token
+      let graphToken: string | undefined;
+      try {
+        const graphTokenResponse = await instance.acquireTokenSilent({
+          ...graphRequest,
+          account: accounts[0],
+        });
+        graphToken = graphTokenResponse.accessToken;
+        addLog("process", "✅ Token Graph obtenido");
+      } catch (error) {
+        addLog("warn", "⚠️ No se pudo obtener token Graph. Se usará token de aplicación.");
+        console.warn("Graph token error:", error);
+      }
+
       const formData = new FormData();
       Array.from(files).forEach((file) => {
         formData.append("files", file);
@@ -76,7 +90,7 @@ export const useProcessPdf = () => {
 
       addLog("process", "Inicio lectura de archivos...");
 
-      const res = await uploadAndProcess(formData, accessToken);
+      const res = await uploadAndProcess(formData, accessToken, graphToken);
       const jobId = res.data.job_id;
 
       if (!jobId) throw new Error("job_id no recibido del backend");

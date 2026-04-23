@@ -9,3 +9,10 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: [import.meta.env.VITE_API_SCOPE],
 };
+
+export const graphRequest = {
+  scopes: [
+    "https://graph.microsoft.com/Files.ReadWrite.All",
+    "https://graph.microsoft.com/Sites.ReadWrite.All"
+  ],
+};
