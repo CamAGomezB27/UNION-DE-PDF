@@ -169,12 +169,12 @@ def upload_to_sharepoint(file_path: str, token: str, job_id: str, user_display: 
                 }
                 
                 update_res = requests.patch(fields_url, headers=update_headers, json=update_body)
-                add_log(job_id, f"📤 RESPUESTA ACTUALIZACION: {update_res.status_code} - {update_res.text}")
+                # add_log(job_id, f"📤 RESPUESTA ACTUALIZACION: {update_res.status_code} - {update_res.text}")
                 
                 if update_res.status_code in [200, 201]:
                     add_log(job_id, f"✅ Usuario registrado en SharePoint: {user_display}")
-                else:
-                    add_log(job_id, f"⚠️ No se pudo registrar usuario. Error: {update_res.status_code}")
+                # else:
+                #     add_log(job_id, f"⚠️ No se pudo registrar usuario. Error: {update_res.status_code}")
         except Exception as e:
             add_log(job_id, f"⚠️ Error al actualizar usuario: {str(e)}")
 
