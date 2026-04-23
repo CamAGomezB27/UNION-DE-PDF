@@ -78,7 +78,7 @@ def file_exists(drive_id, path, token):
 
     return res.status_code == 200
 
-def upload_to_sharepoint(file_path: str, token: str, job_id: str):
+def upload_to_sharepoint(file_path: str, token: str, job_id: str, user_display: str = None):
     filename = os.path.basename(file_path)
 
     drive_id = os.getenv("SHAREPOINT_DRIVE_ID")
@@ -86,6 +86,9 @@ def upload_to_sharepoint(file_path: str, token: str, job_id: str):
     year, month = extract_date_from_pdf(file_path)
 
     add_log(job_id, f"📅 Año: {year}, Mes: {month}")
+    
+    if user_display:
+        add_log(job_id, f"👤 Usuario SharePoint: {user_display}")
 
     base = "FC CONSOLIDADOS"
     year_path = f"{base}/{year}"
@@ -134,14 +137,46 @@ def upload_to_sharepoint(file_path: str, token: str, job_id: str):
 
     log("📦 RESPUESTA UPLOAD: " + res.text)
 
+    if res.status_code not in [200, 201]:
+        raise Exception(f"Upload failed: {res.status_code} {res.text}")
+
     # ✅ METADATA CORRECTA
     meta_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{upload_path}"
 
     meta_res = requests.get(meta_url, headers=headers)
 
-    web_url = None
-    if meta_res.status_code == 200:
-        web_url = meta_res.json().get("webUrl")
+    if meta_res.status_code != 200:
+        raise Exception(f"Meta failed: {meta_res.status_code} {meta_res.text}")
+
+    web_url = meta_res.json().get("webUrl")
+    
+    # 🔐 Intentar actualizar el campo "createdBy" con el usuario
+    if user_display:
+        try:
+            item_id = meta_res.json().get("id")
+            if item_id:
+                # Actualizar campos del listItem
+                fields_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/fields"
+                
+                update_headers = {
+                    "Authorization": token,
+                    "Content-Type": "application/json"
+                }
+                
+                # Campo personalizado para registrar el usuario
+                update_body = {
+                    "CreatedByUser": user_display
+                }
+                
+                update_res = requests.patch(fields_url, headers=update_headers, json=update_body)
+                add_log(job_id, f"📤 RESPUESTA ACTUALIZACION: {update_res.status_code} - {update_res.text}")
+                
+                if update_res.status_code in [200, 201]:
+                    add_log(job_id, f"✅ Usuario registrado en SharePoint: {user_display}")
+                else:
+                    add_log(job_id, f"⚠️ No se pudo registrar usuario. Error: {update_res.status_code}")
+        except Exception as e:
+            add_log(job_id, f"⚠️ Error al actualizar usuario: {str(e)}")
 
     return {
         "webUrl": web_url,
