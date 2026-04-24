@@ -180,6 +180,28 @@ def run_background_job(job_id: str, input_dir: str, token: str, graph_token: str
         result_file = item["file"]
         nit = item["nit"]
 
+        filename = os.path.basename(result_file)
+
+        # ❌ BLOQUEO: factura sin número
+        if "SIN_NUMERO" in filename.upper():
+            add_log(job_id, f"❌ BLOQUEADO NIT {nit}: factura sin número")
+            errors += 1
+            uploaded_files.append({
+                "nit": nit,
+                "status": "error",
+                "reason": "factura sin número"
+            })
+            continue
+
+        # ❌ BLOQUEO: archivo inválido
+        if not result_file:
+            add_log(job_id, f"❌ BLOQUEADO NIT {nit}: archivo inválido")
+            errors += 1
+            continue
+
+        # ✅ VALIDACIÓN OK
+        add_log(job_id, f"✅ VALIDACIÓN EXITOSA NIT {nit}")
+
         try:
             res = upload_to_sharepoint(
                 result_file,

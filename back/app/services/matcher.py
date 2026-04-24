@@ -4,6 +4,12 @@ from rapidfuzz import fuzz
 import re
 
 
+def clean_nit(nit):
+    if not nit:
+        return None
+    return re.sub(r"\D", "", nit)[:9]
+
+
 def normalize_name(name):
 
 
@@ -45,7 +51,7 @@ def group_by_nit(files):
         log(text[:500])
         log("=======================\n")
 
-        nit = extract_nit(text, filename)
+        nit = clean_nit(extract_nit(text, filename))
         name = normalize_name(filename)
 
         log(f"NIT detectado: {nit}")
@@ -67,20 +73,22 @@ def group_by_nit(files):
                 break
 
             # 2️⃣ MATCH POR NOMBRE (FUZZY)
-            score = fuzz.partial_ratio(name, data["name"])
+            # 🔥 SOLO usar nombre si ninguno tiene NIT
+            if not nit and not key.isdigit():
+                score = fuzz.partial_ratio(name, data["name"])
 
-            if score > 85:
-                log(f"🟡 MATCH POR NOMBRE ({score}) con {data['name']}")
+                if score > 90:
+                    log(f"🟡 MATCH POR NOMBRE ({score}) con {data['name']}")
 
-                if file["path"] not in data["paths"]:
-                    data["paths"].append(file["path"])
+                    if file["path"] not in data["paths"]:
+                        data["paths"].append(file["path"])
 
-                matched = True
-                break
+                    matched = True
+                    break
 
         # 🔥 SI NO HIZO MATCH → CREAR NUEVO GRUPO
         if not matched:
-            key = nit[:9] if nit else f"GROUP_{len(groups)}"
+            key = nit if nit else f"GROUP_{len(groups)}"
 
             log(f"🆕 NUEVO GRUPO: {key}")
 
@@ -88,5 +96,5 @@ def group_by_nit(files):
                 "paths": [file["path"]],
                 "name": name
             }
-
+    log(f"🚀 TOTAL GRUPOS: {len(groups)}")
     return groups

@@ -6,29 +6,35 @@ from app.utils.log_utils import log
 
 
 def process_pdfs(folder_path):
-    # 🔹 1. Leer todos los PDFs
     files = read_all_pdfs(folder_path)
 
-    # 🔹 2. Agrupar por NIT
+    # 🔥 separar facturas individuales
     groups = group_by_nit(files)
+    log("🔥 TERMINÓ AGRUPACIÓN")
+    exploded = files  # 👈 para no romper lo de abajo
 
     results = []
 
     # 🔹 3. Procesar cada grupo
     for nit, file_list in groups.items():
     # 🔹 limpiar duplicados + ordenar
-        file_list = sorted(list(set(file_list["paths"])))
+        paths = file_list["paths"]
         log("----")
         log(f"NIT: {nit}")
-        log("Archivos:" + str(file_list))
+        log("Archivos:" + str(paths))
         # 🔹 4. Merge solo si hay más de uno
-        merged = merge_group(nit, file_list)
+        merged = merge_group(nit, paths)
 
         if merged:
             log("✅ MERGE REALIZADO")
             # 🔍 leer texto de uno de los archivos del grupo
-            sample_file = files[0]
-            year, month = extract_date(sample_file["text"])
+            sample = next((f for f in exploded if f["path"] in paths), None)
+
+            if not sample:
+                log(f"⚠️ No se encontró sample para NIT {nit}")
+                continue
+
+            year, month = extract_date(sample["text"])
 
             merged["year"] = year or "SIN_ANO"
             merged["month"] = month or "SIN_MES"

@@ -7,6 +7,17 @@ OUTPUT_DIR = "storage/output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def merge_group(nit, file_paths):
+    seen = set()
+    clean_paths = []
+
+    for path in file_paths:
+        real = path.split("::")[0]
+        if real not in seen:
+            seen.add(real)
+            clean_paths.append(real)
+
+    file_paths = clean_paths
+
     if len(file_paths) < 2:
         log(f"⚠️ NIT {nit} sin coincidencias (solo 1 archivo)")
         return None
@@ -16,19 +27,25 @@ def merge_group(nit, file_paths):
     fc_number = None
 
     for path in file_paths:
-        merger.append(path)
+        if not os.path.exists(path):
+            log(f"❌ Archivo no existe: {path}")
+            continue
+
+        try:
+            merger.append(path)
+        except Exception as e:
+            log(f"❌ Error agregando {path}: {e}")
+            continue
 
         filename = os.path.basename(path)
-        fc_number = extract_fc_number(filename)
-
-        if fc_number:
-            break  # tomamos el primero que encontremos
+        if not fc_number:
+            fc_number = extract_fc_number(filename)
 
     # fallback si no encuentra FC
     if not fc_number:
         fc_number = "SIN_NUMERO"
 
-    output_filename = f"FC - {fc_number}.pdf"
+    output_filename = f"FC - {nit} - {fc_number}.pdf"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
 
     merger.write(output_path)

@@ -16,12 +16,19 @@ def read_all_pdfs(folder_path):
                     text = ""
 
                     for img in images:
-                        text += pytesseract.image_to_string(img, lang="spa")
+                        config = "--oem 3 --psm 6"
+                        text += pytesseract.image_to_string(img, lang="spa", config=config)
+                        
+                        clean_text = text.strip()
+
+                        if len(clean_text) < 50:
+                            log(f"⚠️ OCR vacío o muy corto: {filename}")
+                            continue
 
                     files_data.append({
                         "filename": filename,
                         "path": full_path,
-                        "text": text
+                        "text": clean_text
                     })
 
                 except Exception as e:

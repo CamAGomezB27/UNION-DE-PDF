@@ -14,7 +14,14 @@ def extract_date_from_pdf(file_path):
         text = ""
 
         for img in images:
-            text += pytesseract.image_to_string(img, lang="spa")
+            config = "--oem 3 --psm 6"
+            text += pytesseract.image_to_string(img, lang="spa", config=config)
+
+            clean_text = text.strip()
+
+            if len(clean_text) < 50:
+                log(f"⚠️ OCR vacío o muy corto: {os.path.basename(file_path)}")
+                continue
 
         # formato 2025-01-29
         match = re.search(r"(\d{4})[-/](\d{2})[-/](\d{2})", text)
